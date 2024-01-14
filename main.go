@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
-	"path/filepath"
-    "go.mau.fi/whatsmeow/store/sqlstore"
-    waLog "go.mau.fi/whatsmeow/util/log"
+
+	"go.mau.fi/whatsmeow/store/sqlstore"
+	waLog "go.mau.fi/whatsmeow/util/log"
 
 	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
@@ -84,9 +85,9 @@ func main() {
 
 	if(*waDebug!="") {
 		dbLog := waLog.Stdout("Database", *waDebug, true)
-		container, err = sqlstore.New("sqlite", "file:"+exPath+"/dbdata/main.db?_foreign_keys=on&_busy_timeout=3000", dbLog)
+		container, err = sqlstore.New("sqlite", "file:"+exPath+"/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=3000", dbLog)
 	} else {
-		container, err = sqlstore.New("sqlite", "file:"+exPath+"/dbdata/main.db?_foreign_keys=on&_busy_timeout=3000", nil)
+		container, err = sqlstore.New("sqlite", "file:"+exPath+"/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=3000", nil)
 	}
 	if err != nil {
 		panic(err)
