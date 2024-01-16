@@ -16,6 +16,7 @@ import (
 	waLog "go.mau.fi/whatsmeow/util/log"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
 	_ "modernc.org/sqlite"
@@ -55,13 +56,30 @@ func init() {
 
 func main() {
 
+	err := godotenv.Load(".env")
+
+	if err != nil {
+	  log.Fatal().Err(err).Msg("Error loading .env file")
+	  panic("Error loading .env file")
+	}
+  
     ex, err := os.Executable()
+	
     if err != nil {
         panic(err)
     }
+	this_dir,err := os.Getwd()
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(this_dir)
     exPath := filepath.Dir(ex)
 
     dbDirectory := exPath + "/dbdata"
+
+	fmt.Println(dbDirectory)
 	_, err = os.Stat(dbDirectory)
 	if os.IsNotExist(err) {
 		errDir := os.MkdirAll(dbDirectory, 0751)

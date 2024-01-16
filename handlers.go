@@ -29,6 +29,17 @@ func (v Values) Get(key string) string {
 
 var messageTypes = []string{"Message", "ReadReceipt", "Presence", "HistorySync", "ChatPresence", "All"}
 
+var secret_paths = []string{"/users/create","/users/delete"}
+
+func FindWithIncludes(slice []string, val string) bool {
+	for _, item := range slice {
+		if strings.Contains(val, item) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *server) authalice(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -38,6 +49,27 @@ func (s *server) authalice(next http.Handler) http.Handler {
 		webhook := ""
 		jid := ""
 		events := ""
+
+
+		if FindWithIncludes(secret_paths, r.URL.Path)  {
+			secret := r.Header.Get("secret")
+			my_secret := os.Getenv("SECRET_KEY")
+
+			if secret != my_secret {
+				s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
+				return
+			}
+
+			log_values := Values{map[string]string{
+				"Id":      "1",
+				"Role":    "admin",
+			}}
+
+			ctx = context.WithValue(r.Context(), "userinfo", log_values)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
 
 		// Get token from headers or uri parameters
 		token := r.Header.Get("token")
@@ -2795,6 +2827,113 @@ func (s *server) Respond(w http.ResponseWriter, r *http.Request, status int, dat
 		panic("respond: " + err.Error())
 	}
 }
+
+
+func (s *server) CreateUser() http.HandlerFunc {
+
+	type userStruct struct {
+		Token string
+		Name string
+	}
+	
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		decoder := json.NewDecoder(r.Body)
+		var new_user userStruct
+		err := decoder.Decode(&new_user)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			return
+		}
+
+		fmt.Println(new_user)
+
+		if new_user.Token == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Token in Payload"))
+			return
+		}
+
+		if new_user.Name == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Name in Payload"))
+			return
+		}
+
+		create_query := "INSERT INTO users (token, name) VALUES (?, ?)"
+
+		result, err := s.db.Exec(create_query, new_user.Token, new_user.Name)
+
+		
+
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
+			return
+		}
+
+		id,err := result.LastInsertId()
+
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
+			return
+		}
+
+
+		response := map[string]interface{}{"id":id,"name": new_user.Name, "token": new_user.Token}
+		responseJson, err := json.Marshal(response)
+		fmt.Println(string(responseJson))
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+			return
+		}
+	}
+}
+
+func (s *server) DeleteUser() http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request) {
+		
+
+		user_id := strings.TrimPrefix(r.URL.Path, "/users/delete/")
+		delete_query := "DELETE FROM users WHERE id = ?"
+
+		result, err := s.db.Exec(delete_query, user_id)
+
+		if err != nil {
+			fmt.Println(err)
+			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user")
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
+			return
+		}
+
+		rows,err := result.RowsAffected()
+
+		if err != nil {
+			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user")
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
+			return
+		}
+
+		if rows == 0 {
+			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user, no rows affected")
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user, no rows affected"))
+			return
+		}
+
+		response := map[string]interface{}{"Details": "User deleted successfully"}
+		responseJson, err := json.Marshal(response)
+		fmt.Println(string(responseJson))
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+			return
+		}
+	}
+
+}
+
 
 func validateMessageFields(phone string, stanzaid *string, participant *string) (types.JID, error) {
 

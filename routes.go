@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/justinas/alice"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/hlog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/justinas/alice"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 )
 
 type Middleware = alice.Constructor
@@ -86,6 +87,10 @@ func (s *server) routes() {
 	s.router.Handle("/group/invitelink", c.Then(s.GetGroupInviteLink())).Methods("GET")
 	s.router.Handle("/group/photo", c.Then(s.SetGroupPhoto())).Methods("POST")
 	s.router.Handle("/group/name", c.Then(s.SetGroupName())).Methods("POST")
+
+
+	s.router.Handle("/users/create", c.Then(s.CreateUser())).Methods("POST")
+	s.router.Handle("/users/delete/{id}", c.Then(s.DeleteUser())).Methods("DELETE")
 
 	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(exPath+"/static/")))
 }
