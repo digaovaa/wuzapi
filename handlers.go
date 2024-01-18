@@ -55,6 +55,9 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			secret := r.Header.Get("secret")
 			my_secret := os.Getenv("SECRET_KEY")
 
+			fmt.Println("secret: " + secret)
+			fmt.Println("my_secret: " + my_secret)
+
 			if secret != my_secret {
 				s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
 				return
@@ -2894,7 +2897,22 @@ func (s *server) DeleteUser() http.HandlerFunc{
 	return func(w http.ResponseWriter, r *http.Request) {
 		
 
-		user_id := strings.TrimPrefix(r.URL.Path, "/users/delete/")
+		user_id_str:= strings.TrimPrefix(r.URL.Path, "/users/delete/")
+
+		user_id, err := strconv.Atoi(user_id_str)
+		
+		if err != nil {
+   			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to convert user id to int")
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
+			return
+		}
+		
+		if clientPointer[user_id].IsConnected() && clientPointer[user_id].IsLoggedIn() {
+			log.Info().Str("id", fmt.Sprintf("%d", user_id)).Msg("Disconnecting user")
+				killchannel[user_id] <- true
+		} 
+
+
 		delete_query := "DELETE FROM users WHERE id = ?"
 
 		result, err := s.db.Exec(delete_query, user_id)
