@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	"wuzapi/database"
 
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waLog "go.mau.fi/whatsmeow/util/log"
@@ -24,9 +25,10 @@ import (
 )
 
 type server struct {
-	db     *sql.DB
-	router *mux.Router
-	exPath string
+	service database.Service
+	db      *sql.DB
+	router  *mux.Router
+	exPath  string
 }
 
 var (
@@ -76,16 +78,16 @@ func startPostgres() (*sql.DB, error) {
 	// defer db.Close()
 
 	postGresStmt := `CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY, 
-		name TEXT NOT NULL, 
-		token TEXT NOT NULL, 
-		webhook TEXT NOT NULL DEFAULT '', 
-		jid TEXT NOT NULL DEFAULT '', 
-		qrcode TEXT NOT NULL DEFAULT '', 
-		connected INTEGER, 
-		expiration INTEGER, 
-		events TEXT NOT NULL DEFAULT 'All'
-	);`
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			token TEXT NOT NULL,
+			webhook TEXT NOT NULL DEFAULT '',
+			jid TEXT NOT NULL DEFAULT '',
+			qrcode TEXT NOT NULL DEFAULT '',
+			connected INTEGER,
+			expiration INTEGER,
+			events TEXT NOT NULL DEFAULT 'All'
+		);`
 
 	_, exec_error := db.Exec(postGresStmt)
 
@@ -157,9 +159,22 @@ func main() {
 
 	driver := os.Getenv("DB_DRIVER")
 	fmt.Println("Driver: " + driver)
+
+	service, err := database.NewService(exPath, driver)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error starting database")
+		panic("Error starting database")
+
+	}
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	db := &sql.DB{}
 
-	if driver == "postgres" {
+	if driver == "postgress" {
 		db, err = startPostgres()
 
 		if err != nil {
@@ -186,11 +201,22 @@ func main() {
 	}
 
 	s := &server{
-		router: mux.NewRouter(),
-		db:     db,
-		exPath: exPath,
+		router:  mux.NewRouter(),
+		db:      db,
+		exPath:  exPath,
+		service: service,
 	}
+
 	s.routes()
+
+	service.CreateUser(&database.User{
+		Name:  "bolima",
+		Token: "123456789",
+	})
+	service.UpdateUser(&database.User{
+		ID:   15,
+		Name: "bolima",
+	})
 
 	s.connectOnStartup()
 

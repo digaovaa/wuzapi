@@ -50,8 +50,53 @@ type MyClient struct {
 // Connects to Whatsapp Websocket on server startup if last state was connected
 func (s *server) connectOnStartup() {
 
+	users, err := s.service.ListConnectedUsers()
+
+	if err != nil {
+		log.Error().Err(err).Msg("DB Problem")
+		return
+	}
+
+	for _, user := range users {
+		log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
+
+		v := Values{map[string]string{
+			"Id":      strconv.Itoa(int(user.ID)),
+			"Jid":     user.Jid,
+			"Webhook": user.Webhook,
+			"Token":   user.Token,
+			"Events":  user.Events,
+		}}
+
+		userinfocache.Set(user.Token, v, cache.NoExpiration)
+		userid, _ := strconv.Atoi(strconv.Itoa(int(user.ID)))
+		// Gets and set subscription to webhook events
+		eventarray := strings.Split(user.Events, ",")
+
+		var subscribedEvents []string
+		if len(eventarray) < 1 {
+			if !Find(subscribedEvents, "All") {
+				subscribedEvents = append(subscribedEvents, "All")
+			}
+		} else {
+			for _, arg := range eventarray {
+				if !Find(messageTypes, arg) {
+					log.Warn().Str("Type", arg).Msg("Message type discarded")
+					continue
+				}
+				if !Find(subscribedEvents, arg) {
+					subscribedEvents = append(subscribedEvents, arg)
+				}
+			}
+		}
+		eventstring := strings.Join(subscribedEvents, ",")
+		log.Info().Str("events", eventstring).Str("jid", user.Jid).Msg("Attempt to connect")
+		killchannel[userid] = make(chan bool)
+		go s.startClient(userid, user.Jid, user.Token, subscribedEvents)
+	}
+
 	// checar postgres sintexe
-	rows, err := s.db.Query("SELECT id,token,jid,webhook,events FROM users WHERE connected=1")
+	/* rows, err := s.db.Query("SELECT id,token,jid,webhook,events FROM users WHERE connected=1")
 	if err != nil {
 		log.Error().Err(err).Msg("DB Problem")
 		return
@@ -106,7 +151,7 @@ func (s *server) connectOnStartup() {
 	err = rows.Err()
 	if err != nil {
 		log.Error().Err(err).Msg("DB Problem")
-	}
+	} */
 }
 
 func parseJID(arg string) (types.JID, bool) {
