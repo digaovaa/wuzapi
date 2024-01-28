@@ -122,6 +122,18 @@ func (s *service) UpdateUser(user *User) error {
 	return nil
 }
 
+func (s *service) SetQrcode(id int, qrcode string) error {
+	err := s.db.Model(&User{}).Where("id = ?", id).Update("qrcode", qrcode).Error
+
+	if err != nil {
+		log.Error().Err(err).Msg("Could not set qrcode")
+
+		return err
+	}
+
+	return nil
+}
+
 func (s *service) SetWebhook(id int, webhook string) error {
 
 	err := s.db.Model(&User{}).Where("id = ?", id).Update("webhook", webhook).Error
