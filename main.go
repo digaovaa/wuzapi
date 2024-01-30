@@ -57,7 +57,7 @@ func init() {
 	}
 }
 
-func startPostgres() (*sql.DB, error) {
+/* func startPostgres() (*sql.DB, error) {
 	log.Info().Msg("Starting postgres")
 
 	dbHost := os.Getenv("POSTGRES_HOST")
@@ -120,7 +120,7 @@ func startSqlite(exPath string) (*sql.DB, error) {
 
 	return db, nil
 
-}
+} */
 
 func main() {
 
@@ -172,23 +172,23 @@ func main() {
 		fmt.Println(err)
 	}
 
-	db := &sql.DB{}
+	/* 	db := &sql.DB{}
 
-	if driver == "postgress" {
-		db, err = startPostgres()
+	   	if driver == "postgress" {
+	   		db, err = startPostgres()
 
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error starting postgres")
-			panic("Error starting postgres")
-		}
-	} else {
-		db, err = startSqlite(exPath)
+	   		if err != nil {
+	   			log.Fatal().Err(err).Msg("Error starting postgres")
+	   			panic("Error starting postgres")
+	   		}
+	   	} else {
+	   		db, err = startSqlite(exPath)
 
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error starting sqlite")
-			panic("Error starting sqlite")
-		}
-	}
+	   		if err != nil {
+	   			log.Fatal().Err(err).Msg("Error starting sqlite")
+	   			panic("Error starting sqlite")
+	   		}
+	   	} */
 
 	if *waDebug != "" {
 		dbLog := waLog.Stdout("Database", *waDebug, true)
@@ -201,22 +201,13 @@ func main() {
 	}
 
 	s := &server{
-		router:  mux.NewRouter(),
-		db:      db,
+		router: mux.NewRouter(),
+		// db:      db,
 		exPath:  exPath,
 		service: service,
 	}
 
 	s.routes()
-
-	service.CreateUser(&database.User{
-		Name:  "bolima",
-		Token: "123456789",
-	})
-	service.UpdateUser(&database.User{
-		ID:   15,
-		Name: "bolima",
-	})
 
 	s.connectOnStartup()
 

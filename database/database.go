@@ -4,18 +4,26 @@ import (
 	"fmt"
 	"os"
 
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
-	_ "modernc.org/sqlite"
 )
 
 type Service interface {
 	CreateUser(user *User) (int, error)
 	UpdateUser(user *User) error
+	DeleteUser(id int) error
+	SetQrcode(id int, qrcode string) error
+	SetWebhook(id int, webhook string) error
+	SetConnected(id int) error
+	SetDisconnected(id int) error
+	SetJid(id int, jid string) error
+	SetEvents(id int, events string) error
+	GetUserById(id int) (*User, error)
+	GetUserByToken(token string) (*User, error)
 	ListConnectedUsers() ([]*User, error)
 }
 
@@ -36,17 +44,40 @@ type service struct {
 	db *gorm.DB
 }
 
+func startMysql() (*gorm.DB, error) {
+	log.Info().Msg("Starting mysql")
+
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbUser, dbPass, dbHost, dbPort, dbName)
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Could not open/create " + dsn)
+		return nil, err
+	}
+
+	db.AutoMigrate(&User{})
+
+	return db, nil
+}
+
 func startPostgres() (*gorm.DB, error) {
 
 	log.Info().Msg("Starting postgres")
 
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPass := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
 
 	fmt.Println(dbHost, dbUser, dbPass, dbName)
-	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=America/Sao_Paulo", dbHost, dbUser, dbPass, dbName)
+	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo", dbHost, dbUser, dbPass, dbName, dbPort)
 	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
 
 	if err != nil {
@@ -77,13 +108,12 @@ func NewService(exPath string, driver string) (Service, error) {
 	var err error
 	var db *gorm.DB
 
-	fmt.Println("Driver: in func ", driver)
-	fmt.Println("boolean: ", driver == "bolama")
-
-	if driver == "bolama" {
-		fmt.Println("entrei no if")
+	switch driver {
+	case "mysql":
+		db, err = startMysql()
+	case "postgres":
 		db, err = startPostgres()
-	} else {
+	default:
 		db, err = startSqlite(exPath)
 	}
 
@@ -237,4 +267,17 @@ func (s *service) ListConnectedUsers() ([]*User, error) {
 	}
 
 	return users, nil
+}
+
+func (s *service) DeleteUser(id int) error {
+
+	err := s.db.Delete(&User{}, id).Error
+
+	if err != nil {
+		log.Error().Err(err).Msg("Could not delete user")
+
+		return err
+	}
+
+	return nil
 }

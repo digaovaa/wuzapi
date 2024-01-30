@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"wuzapi/database"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/mdp/qrterminal/v3"
@@ -45,6 +46,7 @@ type MyClient struct {
 	token          string
 	subscriptions  []string
 	db             *sql.DB
+	service        database.Service
 }
 
 // Connects to Whatsapp Websocket on server startup if last state was connected
@@ -60,6 +62,7 @@ func (s *server) connectOnStartup() {
 	for _, user := range users {
 		log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
 
+		fmt.Println("id", user.ID, "token", user.Token, "jid", user.Jid, "webhook", user.Webhook, "events", user.Events)
 		v := Values{map[string]string{
 			"Id":      strconv.Itoa(int(user.ID)),
 			"Jid":     user.Jid,
@@ -166,18 +169,20 @@ func parseJID(arg string) (types.JID, bool) {
 	phonenumber := ""
 	phonenumber = strings.Split(arg, "@")[0]
 	phonenumber = strings.Split(phonenumber, ".")[0]
-	b := true
-	for _, c := range phonenumber {
-		if c < '0' || c > '9' {
-			b = false
-			break
-		}
-	}
-	if b == false {
-		log.Warn().Msg("Bad jid format, return empty")
-		recipient, _ := types.ParseJID("")
-		return recipient, false
-	}
+
+	fmt.Println("phonenumber", phonenumber)
+	/* 	b := true
+	   	for _, c := range phonenumber {
+	   		if c < '0' || c > '9' {
+	   			b = false
+	   			break
+	   		}
+	   	}
+	   	if b == false {
+	   		log.Warn().Msg("Bad jid format, return empty")
+	   		recipient, _ := types.ParseJID("")
+	   		return recipient, false
+	   	} */
 
 	if !strings.ContainsRune(arg, '@') {
 		return types.NewJID(arg, types.DefaultUserServer), true
@@ -197,10 +202,11 @@ func parseJID(arg string) (types.JID, bool) {
 func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) {
 
 	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
-
+	fmt.Println("userid", userID, "jid", textjid, "token", token, "subscriptions", subscriptions)
 	var deviceStore *store.Device
 	var err error
 
+	fmt.Println("clientPointer", clientPointer)
 	if clientPointer[userID] != nil {
 		isConnected := clientPointer[userID].IsConnected()
 		if isConnected == true {
@@ -234,6 +240,8 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 
 	if textjid != "" {
 		jid, _ := parseJID(textjid)
+
+		fmt.Println("jid", jid)
 		// If you want multiple sessions, remember their JIDs and use .GetDevice(jid) or .GetAllDevices() instead.
 		//deviceStore, err := container.GetFirstDevice()
 		deviceStore, err = container.GetDevice(jid)
@@ -259,19 +267,23 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 
 	clientLog := waLog.Stdout("Client", *waDebug, true)
 	var client *whatsmeow.Client
+
 	if *waDebug != "" {
 		client = whatsmeow.NewClient(deviceStore, clientLog)
 	} else {
 		client = whatsmeow.NewClient(deviceStore, nil)
 	}
+
 	clientPointer[userID] = client
-	mycli := MyClient{client, 1, userID, token, subscriptions, s.db}
+	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service}
 	mycli.eventHandlerID = mycli.WAClient.AddEventHandler(mycli.myEventHandler)
 	clientHttp[userID] = resty.New()
 	clientHttp[userID].SetRedirectPolicy(resty.FlexibleRedirectPolicy(15))
+
 	if *waDebug == "DEBUG" {
 		clientHttp[userID].SetDebug(true)
 	}
+
 	clientHttp[userID].SetTimeout(5 * time.Second)
 	clientHttp[userID].SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 
@@ -289,6 +301,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 			if err != nil {
 				panic(err)
 			}
+
 			for evt := range qrChan {
 				if evt.Event == "code" {
 					// Display QR code in terminal (useful for testing/developing)
@@ -301,30 +314,38 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
 
 					// checar postgres sintexe
-					sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
-					_, err := s.db.Exec(sqlStmt, base64qrcode, userID)
+					err := s.service.SetQrcode(userID, base64qrcode)
+					/* sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+					_, err := s.db.Exec(sqlStmt, base64qrcode, userID) */
 					if err != nil {
-						log.Error().Err(err).Msg(sqlStmt)
+						log.Error().Err(err).Msg("Could not update QR code")
 					}
 				} else if evt.Event == "timeout" {
 					// Clear QR code from DB on timeout
 					// checar postgres sintexe
-					sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
-					_, err := s.db.Exec(sqlStmt, "", userID)
+
+					err := s.service.SetQrcode(userID, "")
+					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+					_, err := s.db.Exec(sqlStmt, "", userID) */
 					if err != nil {
-						log.Error().Err(err).Msg(sqlStmt)
+						log.Error().Err(err).Msg("Could not update QR code")
 					}
+
 					log.Warn().Msg("QR timeout killing channel")
 					delete(clientPointer, userID)
 					killchannel[userID] <- true
 				} else if evt.Event == "success" {
 					log.Info().Msg("QR pairing ok!")
 					// Clear QR code after pairing
-					sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
-					_, err := s.db.Exec(sqlStmt, "", userID)
+
+					err := s.service.SetQrcode(userID, "")
+
+					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+					_, err := s.db.Exec(sqlStmt, "", userID) */
 					if err != nil {
-						log.Error().Err(err).Msg(sqlStmt)
+						log.Error().Err(err).Msg("Could not update QR code")
 					}
+
 				} else {
 					log.Info().Str("event", evt.Event).Msg("Login event")
 				}
@@ -349,11 +370,14 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 			delete(clientPointer, userID)
 
 			// checar postgres sintexe
-			sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
-			_, err := s.db.Exec(sqlStmt, userID)
+
+			err := s.service.SetDisconnected(userID)
+			/* sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
+			_, err := s.db.Exec(sqlStmt, userID) */
 			if err != nil {
-				log.Error().Err(err).Msg(sqlStmt)
+				log.Error().Err(err).Msg("Could not update user as disconnected")
 			}
+
 			return
 		default:
 			time.Sleep(1000 * time.Millisecond)
@@ -386,6 +410,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			}
 		}
 	case *events.Connected, *events.PushNameSetting:
+		log.Info().Msg("Connected event received")
 		if len(mycli.WAClient.Store.PushName) == 0 {
 			return
 		}
@@ -397,21 +422,35 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		} else {
 			log.Info().Msg("Marked self as available")
 		}
-		sqlStmt := `UPDATE users SET connected=1 WHERE id=?`
-		_, err = mycli.db.Exec(sqlStmt, mycli.userID)
+
+		err = mycli.service.SetConnected(mycli.userID)
+
+		/* sqlStmt := `UPDATE users SET connected=1 WHERE id=?`
+		_, err = mycli.db.Exec(sqlStmt, mycli.userID) */
+
 		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
+			log.Error().Err(err).Msg("Could not update user as connected")
 			return
 		}
+
 	case *events.PairSuccess:
 		log.Info().Str("userid", strconv.Itoa(mycli.userID)).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
 		jid := evt.ID
 
 		// checar postgres sintexe
-		sqlStmt := `UPDATE users SET jid=? WHERE id=?`
-		_, err := mycli.db.Exec(sqlStmt, jid, mycli.userID)
+
+		err := mycli.service.SetJid(mycli.userID, jid.String())
+		/* sqlStmt := `UPDATE users SET jid=? WHERE id=?`
+		_, err := mycli.db.Exec(sqlStmt, jid, mycli.userID) */
 		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
+			log.Error().Err(err).Msg("Could not update jid")
+			return
+		}
+
+		err = mycli.service.SetConnected(mycli.userID)
+
+		if err != nil {
+			log.Error().Err(err).Msg("Could not update user as connected")
 			return
 		}
 
@@ -611,12 +650,15 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
 		killchannel[mycli.userID] <- true
 		// checar postgres sintexe
-		sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
-		_, err := mycli.db.Exec(sqlStmt, mycli.userID)
+
+		err := mycli.service.SetDisconnected(mycli.userID)
+		/* sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
+		_, err := mycli.db.Exec(sqlStmt, mycli.userID) */
 		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
+			log.Error().Err(err).Msg("Could not update user as disconnected")
 			return
 		}
+
 	case *events.ChatPresence:
 		postmap["type"] = "ChatPresence"
 		dowebhook = 1

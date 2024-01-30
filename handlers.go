@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"wuzapi/database"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/vincent-petithory/dataurl"
@@ -45,10 +46,10 @@ func (s *server) authalice(next http.Handler) http.Handler {
 
 		var ctx context.Context
 		userid := 0
-		txtid := ""
-		webhook := ""
-		jid := ""
-		events := ""
+		// txtid := ""
+		// webhook := ""
+		// jid := ""
+		// events := ""
 
 		if FindWithIncludes(secret_paths, r.URL.Path) {
 			secret := r.Header.Get("secret")
@@ -83,30 +84,53 @@ func (s *server) authalice(next http.Handler) http.Handler {
 		if !found {
 			log.Info().Msg("Looking for user information in DB")
 			// Checks DB from matching user and store user values in context
-			rows, err := s.db.Query("SELECT id,webhook,jid,events FROM users WHERE token=? LIMIT 1", token)
+
+			user, err := s.service.GetUserByToken(token)
+
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, err)
 				return
 			}
-			defer rows.Close()
-			for rows.Next() {
-				err = rows.Scan(&txtid, &webhook, &jid, &events)
+
+			string_user_id := strconv.Itoa(int(user.ID))
+
+			userid = int(user.ID)
+
+			v := Values{map[string]string{
+				"Id":      string_user_id,
+				"Jid":     user.Jid,
+				"Webhook": user.Webhook,
+				"Token":   user.Token,
+				"Events":  user.Events,
+			}}
+
+			userinfocache.Set(token, v, cache.NoExpiration)
+			ctx = context.WithValue(r.Context(), "userinfo", v)
+			/*
+				rows, err := s.db.Query("SELECT id,webhook,jid,events FROM users WHERE token=? LIMIT 1", token)
 				if err != nil {
 					s.Respond(w, r, http.StatusInternalServerError, err)
 					return
 				}
-				userid, _ = strconv.Atoi(txtid)
-				v := Values{map[string]string{
-					"Id":      txtid,
-					"Jid":     jid,
-					"Webhook": webhook,
-					"Token":   token,
-					"Events":  events,
-				}}
+				defer rows.Close()
+				for rows.Next() {
+					err = rows.Scan(&txtid, &webhook, &jid, &events)
+					if err != nil {
+						s.Respond(w, r, http.StatusInternalServerError, err)
+						return
+					}
+					userid, _ = strconv.Atoi(txtid)
+					v := Values{map[string]string{
+						"Id":      txtid,
+						"Jid":     jid,
+						"Webhook": webhook,
+						"Token":   token,
+						"Events":  events,
+					}}
 
-				userinfocache.Set(token, v, cache.NoExpiration)
-				ctx = context.WithValue(r.Context(), "userinfo", v)
-			}
+					userinfocache.Set(token, v, cache.NoExpiration)
+					ctx = context.WithValue(r.Context(), "userinfo", v)
+				} */
 		} else {
 			ctx = context.WithValue(r.Context(), "userinfo", myuserinfo)
 			userid, _ = strconv.Atoi(myuserinfo.(Values).Get("Id"))
@@ -126,10 +150,10 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 
 		var ctx context.Context
 		userid := 0
-		txtid := ""
+		/* txtid := ""
 		webhook := ""
 		jid := ""
-		events := ""
+		events := "" */
 
 		// Get token from headers or uri parameters
 		token := r.Header.Get("token")
@@ -142,7 +166,31 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 			log.Info().Msg("Looking for user information in DB")
 			// Checks DB from matching user and store user values in context
 			// checar sintaxe postgres 1
-			rows, err := s.db.Query("SELECT id,webhook,jid,events FROM users WHERE token=? LIMIT 1", token)
+
+			user, err := s.service.GetUserByToken(token)
+
+			if err != nil {
+				s.Respond(w, r, http.StatusInternalServerError, err)
+				return
+			}
+
+			string_user_id := strconv.Itoa(int(user.ID))
+
+			userid = int(user.ID)
+
+			v := Values{map[string]string{
+				"Id":      string_user_id,
+				"Jid":     user.Jid,
+				"Webhook": user.Webhook,
+				"Token":   user.Token,
+				"Events":  user.Events,
+			}}
+
+			userinfocache.Set(token, v, cache.NoExpiration)
+			ctx = context.WithValue(r.Context(), "userinfo", v)
+
+			// ---------
+			/* rows, err := s.db.Query("SELECT id,webhook,jid,events FROM users WHERE token=? LIMIT 1", token)
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, err)
 				return
@@ -165,7 +213,7 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 
 				userinfocache.Set(token, v, cache.NoExpiration)
 				ctx = context.WithValue(r.Context(), "userinfo", v)
-			}
+			} */
 		} else {
 			ctx = context.WithValue(r.Context(), "userinfo", myuserinfo)
 			userid, _ = strconv.Atoi(myuserinfo.(Values).Get("Id"))
@@ -229,7 +277,9 @@ func (s *server) Connect() http.HandlerFunc {
 			eventstring = strings.Join(subscribedEvents, ",")
 
 			// checar sintaxe postgres 2
-			_, err = s.db.Exec("UPDATE users SET events=? WHERE id=?", eventstring, userid)
+
+			err = s.service.SetEvents(userid, eventstring)
+			// _, err = s.db.Exec("UPDATE users SET events=? WHERE id=?", eventstring, userid)
 			if err != nil {
 				log.Warn().Msg("Could not set events in users table")
 			}
@@ -288,7 +338,8 @@ func (s *server) Disconnect() http.HandlerFunc {
 				killchannel[userid] <- true
 
 				// checar sintaxe postgres 3
-				_, err := s.db.Exec("UPDATE users SET events=? WHERE id=?", "", userid)
+				err := s.service.SetEvents(userid, "")
+				// _, err := s.db.Exec("UPDATE users SET events=? WHERE id=?", "", userid)
 				if err != nil {
 					log.Warn().Str("userid", txtid).Msg("Could not set events in users table")
 				}
@@ -320,12 +371,20 @@ func (s *server) Disconnect() http.HandlerFunc {
 func (s *server) GetWebhook() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		webhook := ""
-		events := ""
+		// webhook := ""
+		//events := ""
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
 
 		// checar sintaxe postgres 4
-		rows, err := s.db.Query("SELECT webhook,events FROM users WHERE id=? LIMIT 1", txtid)
+		userid, err := strconv.Atoi(txtid)
+
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not get webhook: %v", err)))
+			return
+		}
+
+		user, err := s.service.GetUserById(userid)
+		/* rows, err := s.db.Query("SELECT webhook,events FROM users WHERE id=? LIMIT 1", txtid)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not get webhook: %v", err)))
 			return
@@ -343,10 +402,10 @@ func (s *server) GetWebhook() http.HandlerFunc {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not get webhook: %s", fmt.Sprintf("%s", err))))
 			return
 		}
+		*/
+		eventarray := strings.Split(user.Events, ",")
 
-		eventarray := strings.Split(events, ",")
-
-		response := map[string]interface{}{"webhook": webhook, "subscribe": eventarray}
+		response := map[string]interface{}{"webhook": user.Webhook, "subscribe": eventarray}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
@@ -378,7 +437,9 @@ func (s *server) SetWebhook() http.HandlerFunc {
 		var webhook = t.WebhookURL
 
 		// checar sintaxe postgres 5
-		_, err = s.db.Exec("UPDATE users SET webhook=? WHERE id=?", webhook, userid)
+
+		err = s.service.SetWebhook(userid, webhook)
+		// _, err = s.db.Exec("UPDATE users SET webhook=? WHERE id=?", webhook, userid)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("%s", err)))
 			return
@@ -416,12 +477,15 @@ func (s *server) GetQR() http.HandlerFunc {
 			}
 
 			// checar sintaxe postgres 6
-			rows, err := s.db.Query("SELECT qrcode AS code FROM users WHERE id=? LIMIT 1", userid)
+
+			user, err := s.service.GetUserById(userid)
+			code = user.Qrcode
+			// rows, err := s.db.Query("SELECT qrcode AS code FROM users WHERE id=? LIMIT 1", userid)
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, err)
 				return
 			}
-			defer rows.Close()
+			/* defer rows.Close()
 			for rows.Next() {
 				err = rows.Scan(&code)
 				if err != nil {
@@ -433,7 +497,7 @@ func (s *server) GetQR() http.HandlerFunc {
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, err)
 				return
-			}
+			} */
 			if clientPointer[userid].IsLoggedIn() == true {
 				s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Loggedin"))
 				return
@@ -2847,7 +2911,7 @@ func (s *server) CreateUser() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		driver := os.Getenv("DB_DRIVER")
+
 		decoder := json.NewDecoder(r.Body)
 		var new_user userStruct
 		err := decoder.Decode(&new_user)
@@ -2868,39 +2932,15 @@ func (s *server) CreateUser() http.HandlerFunc {
 			return
 		}
 
-		var create_query string
+		id, err := s.service.CreateUser(&database.User{
+			Token: new_user.Token,
+			Name:  new_user.Name,
+		})
 
-		var id int64
-
-		if driver == "postgres" {
-			create_query = "INSERT INTO users (token, name) VALUES ($1, $2) RETURNING id"
-
-			err := s.db.QueryRow(create_query, new_user.Token, new_user.Name).Scan(&id)
-
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to create user in database")
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
-				return
-			}
-
-		} else {
-			create_query = "INSERT INTO users (token, name) VALUES (?, ?)"
-
-			result, err := s.db.Exec(create_query, new_user.Token, new_user.Name)
-
-			if err != nil {
-				fmt.Println(err)
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
-				return
-			}
-
-			id, err = result.LastInsertId()
-
-			if err != nil {
-				fmt.Println(err)
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
-				return
-			}
+		if err != nil {
+			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to create user")
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
+			return
 		}
 
 		response := map[string]interface{}{"id": id, "name": new_user.Name, "token": new_user.Token}
@@ -2934,48 +2974,13 @@ func (s *server) DeleteUser() http.HandlerFunc {
 			killchannel[user_id] <- true
 		}
 
-		driver := os.Getenv("DB_DRIVER")
+		err = s.service.DeleteUser(user_id)
 
-		var delete_query string
+		if err != nil {
+			log.Err(err).Msg("Failed to delete user")
 
-		if driver == "postgres" {
-			delete_query = "DELETE FROM users WHERE id = $1"
-
-			_, err := s.db.Exec(delete_query, user_id)
-
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user query")
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
-				return
-			}
-
-		} else {
-
-			delete_query := "DELETE FROM users WHERE id = ?"
-
-			result, err := s.db.Exec(delete_query, user_id)
-
-			if err != nil {
-				fmt.Println(err)
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user")
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
-				return
-			}
-
-			rows, err := result.RowsAffected()
-
-			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user")
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
-				return
-			}
-
-			if rows == 0 {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to delete user, no rows affected")
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user, no rows affected"))
-				return
-			}
-
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
+			return
 		}
 
 		response := map[string]interface{}{"Details": "User deleted successfully"}
