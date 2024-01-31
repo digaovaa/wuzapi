@@ -76,7 +76,6 @@ func startPostgres() (*gorm.DB, error) {
 	dbPass := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 
-	fmt.Println(dbHost, dbUser, dbPass, dbName)
 	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo", dbHost, dbUser, dbPass, dbName, dbPort)
 	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
 

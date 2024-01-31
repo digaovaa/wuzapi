@@ -62,7 +62,6 @@ func (s *server) connectOnStartup() {
 	for _, user := range users {
 		log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
 
-		fmt.Println("id", user.ID, "token", user.Token, "jid", user.Jid, "webhook", user.Webhook, "events", user.Events)
 		v := Values{map[string]string{
 			"Id":      strconv.Itoa(int(user.ID)),
 			"Jid":     user.Jid,
@@ -202,7 +201,6 @@ func parseJID(arg string) (types.JID, bool) {
 func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) {
 
 	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
-	fmt.Println("userid", userID, "jid", textjid, "token", token, "subscriptions", subscriptions)
 	var deviceStore *store.Device
 	var err error
 
@@ -241,7 +239,6 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	if textjid != "" {
 		jid, _ := parseJID(textjid)
 
-		fmt.Println("jid", jid)
 		// If you want multiple sessions, remember their JIDs and use .GetDevice(jid) or .GetAllDevices() instead.
 		//deviceStore, err := container.GetFirstDevice()
 		deviceStore, err = container.GetDevice(jid)
