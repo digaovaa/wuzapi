@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	"wuzapi/database"
 
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waLog "go.mau.fi/whatsmeow/util/log"
@@ -24,9 +25,10 @@ import (
 )
 
 type server struct {
-	db     *sql.DB
-	router *mux.Router
-	exPath string
+	service database.Service
+	db      *sql.DB
+	router  *mux.Router
+	exPath  string
 }
 
 var (
@@ -55,7 +57,7 @@ func init() {
 	}
 }
 
-func startPostgres() (*sql.DB, error) {
+/* func startPostgres() (*sql.DB, error) {
 	log.Info().Msg("Starting postgres")
 
 	dbHost := os.Getenv("POSTGRES_HOST")
@@ -76,16 +78,16 @@ func startPostgres() (*sql.DB, error) {
 	// defer db.Close()
 
 	postGresStmt := `CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY, 
-		name TEXT NOT NULL, 
-		token TEXT NOT NULL, 
-		webhook TEXT NOT NULL DEFAULT '', 
-		jid TEXT NOT NULL DEFAULT '', 
-		qrcode TEXT NOT NULL DEFAULT '', 
-		connected INTEGER, 
-		expiration INTEGER, 
-		events TEXT NOT NULL DEFAULT 'All'
-	);`
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			token TEXT NOT NULL,
+			webhook TEXT NOT NULL DEFAULT '',
+			jid TEXT NOT NULL DEFAULT '',
+			qrcode TEXT NOT NULL DEFAULT '',
+			connected INTEGER,
+			expiration INTEGER,
+			events TEXT NOT NULL DEFAULT 'All'
+		);`
 
 	_, exec_error := db.Exec(postGresStmt)
 
@@ -118,7 +120,7 @@ func startSqlite(exPath string) (*sql.DB, error) {
 
 	return db, nil
 
-}
+} */
 
 func main() {
 
@@ -157,23 +159,36 @@ func main() {
 
 	driver := os.Getenv("DB_DRIVER")
 	fmt.Println("Driver: " + driver)
-	db := &sql.DB{}
 
-	if driver == "postgres" {
-		db, err = startPostgres()
+	service, err := database.NewService(exPath, driver)
 
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error starting postgres")
-			panic("Error starting postgres")
-		}
-	} else {
-		db, err = startSqlite(exPath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error starting database")
+		panic("Error starting database")
 
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error starting sqlite")
-			panic("Error starting sqlite")
-		}
 	}
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	/* 	db := &sql.DB{}
+
+	   	if driver == "postgress" {
+	   		db, err = startPostgres()
+
+	   		if err != nil {
+	   			log.Fatal().Err(err).Msg("Error starting postgres")
+	   			panic("Error starting postgres")
+	   		}
+	   	} else {
+	   		db, err = startSqlite(exPath)
+
+	   		if err != nil {
+	   			log.Fatal().Err(err).Msg("Error starting sqlite")
+	   			panic("Error starting sqlite")
+	   		}
+	   	} */
 
 	if *waDebug != "" {
 		dbLog := waLog.Stdout("Database", *waDebug, true)
@@ -187,9 +202,11 @@ func main() {
 
 	s := &server{
 		router: mux.NewRouter(),
-		db:     db,
-		exPath: exPath,
+		// db:      db,
+		exPath:  exPath,
+		service: service,
 	}
+
 	s.routes()
 
 	s.connectOnStartup()
