@@ -57,71 +57,6 @@ func init() {
 	}
 }
 
-/* func startPostgres() (*sql.DB, error) {
-	log.Info().Msg("Starting postgres")
-
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPass := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	fmt.Println(dbHost, dbUser, dbPass, dbName)
-	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbUser, dbPass, dbName)
-
-	db, err := sql.Open("postgres", connString)
-
-	if err != nil {
-		log.Fatal().Err(err).Msg("Could not open/create " + connString)
-		return nil, err
-	}
-
-	// defer db.Close()
-
-	postGresStmt := `CREATE TABLE IF NOT EXISTS users (
-			id SERIAL PRIMARY KEY,
-			name TEXT NOT NULL,
-			token TEXT NOT NULL,
-			webhook TEXT NOT NULL DEFAULT '',
-			jid TEXT NOT NULL DEFAULT '',
-			qrcode TEXT NOT NULL DEFAULT '',
-			connected INTEGER,
-			expiration INTEGER,
-			events TEXT NOT NULL DEFAULT 'All'
-		);`
-
-	_, exec_error := db.Exec(postGresStmt)
-
-	if exec_error != nil {
-		log.Fatal().Err(exec_error).Msg("Could not create table users")
-		return nil, exec_error
-	}
-
-	return db, nil
-}
-
-func startSqlite(exPath string) (*sql.DB, error) {
-	log.Info().Msg("Starting sqlite")
-
-	db, err := sql.Open("sqlite", exPath+"/dbdata/users.db")
-	if err != nil {
-		log.Fatal().Err(err).Msg("Could not open/create " + exPath + "/dbdata/users.db")
-		return nil, err
-	}
-
-	// defer db.Close()
-
-	sqlStmt := `CREATE TABLE IF NOT EXISTS users (id INTEGER NOT NULL PRIMARY KEY, name TEXT NOT NULL, token TEXT NOT NULL, webhook TEXT NOT NULL default "", jid TEXT NOT NULL default "", qrcode TEXT NOT NULL default "", connected INTEGER, expiration INTEGER, events TEXT NOT NULL default "All");`
-	_, err = db.Exec(sqlStmt)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Could not create table users")
-
-		return nil, err
-	}
-
-	return db, nil
-
-} */
-
 func main() {
 
 	err := godotenv.Load(".env")
@@ -171,24 +106,6 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	/* 	db := &sql.DB{}
-
-	   	if driver == "postgress" {
-	   		db, err = startPostgres()
-
-	   		if err != nil {
-	   			log.Fatal().Err(err).Msg("Error starting postgres")
-	   			panic("Error starting postgres")
-	   		}
-	   	} else {
-	   		db, err = startSqlite(exPath)
-
-	   		if err != nil {
-	   			log.Fatal().Err(err).Msg("Error starting sqlite")
-	   			panic("Error starting sqlite")
-	   		}
-	   	} */
 
 	if *waDebug != "" {
 		dbLog := waLog.Stdout("Database", *waDebug, true)

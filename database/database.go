@@ -61,8 +61,6 @@ func startMysql() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(&User{})
-
 	return db, nil
 }
 
@@ -83,8 +81,6 @@ func startPostgres() (*gorm.DB, error) {
 		log.Fatal().Err(err).Msg("Could not open/create " + connString)
 		return nil, err
 	}
-
-	db.AutoMigrate(&User{})
 
 	return db, nil
 }
@@ -115,6 +111,8 @@ func NewService(exPath string, driver string) (Service, error) {
 	default:
 		db, err = startSqlite(exPath)
 	}
+
+	db.AutoMigrate(&User{})
 
 	if err != nil {
 		return nil, err
