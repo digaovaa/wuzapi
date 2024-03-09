@@ -1,0 +1,23 @@
+meta {
+  name: qr
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://localhost:8080/session/qr
+  body: json
+  auth: none
+}
+
+headers {
+  secret: teste
+  token: teste123
+}
+
+body:json {
+  {
+    "Name":"wenked",
+    "Token":"teste123"
+  }
+}

@@ -86,6 +86,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			// Checks DB from matching user and store user values in context
 
 			user, err := s.service.GetUserByToken(token)
+			fmt.Println("user", user)
 
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, err)
@@ -168,8 +169,10 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 			// checar sintaxe postgres 1
 
 			user, err := s.service.GetUserByToken(token)
+			fmt.Println("user", user)
 
 			if err != nil {
+
 				s.Respond(w, r, http.StatusInternalServerError, err)
 				return
 			}

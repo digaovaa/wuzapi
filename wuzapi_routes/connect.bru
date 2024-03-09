@@ -1,0 +1,23 @@
+meta {
+  name: connect
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:8080/session/connect
+  body: json
+  auth: none
+}
+
+headers {
+  secret: teste
+  token: teste123
+}
+
+body:json {
+  {
+    "Events": "All",
+    "Immediate": true
+  }
+}
