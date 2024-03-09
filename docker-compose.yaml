@@ -7,8 +7,6 @@ services:
   volumes:
    - ./dbdata:/app/dbdata
    - ./files:/app/files
-  depends_on:
-   - db
   ports:
    - 8080:8080
 
