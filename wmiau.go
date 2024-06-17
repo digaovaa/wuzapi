@@ -23,7 +23,7 @@ import (
 	"github.com/skip2/go-qrcode"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/appstate"
-	waProto "go.mau.fi/whatsmeow/binary/proto"
+	waE2E "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store"
 	_ "modernc.org/sqlite"
 
@@ -255,11 +255,11 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		deviceStore = container.NewDevice()
 	}
 
-	//store.CompanionProps.PlatformType = waProto.CompanionProps_CHROME.Enum()
+	//store.CompanionProps.PlatformType = waE2E.CompanionProps_CHROME.Enum()
 	//store.CompanionProps.Os = proto.String("Mac OS")
 
 	osName := "Mac OS 10"
-	store.DeviceProps.PlatformType = waProto.DeviceProps_UNKNOWN.Enum()
+	store.DeviceProps.PlatformType = waE2E.DeviceProps_UNKNOWN.Enum()
 	store.DeviceProps.Os = &osName
 
 	clientLog := waLog.Stdout("Client", *waDebug, true)
