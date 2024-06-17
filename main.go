@@ -95,7 +95,7 @@ func main() {
 	driver := os.Getenv("DB_DRIVER")
 	fmt.Println("Driver: " + driver)
 
-	service, err := database.NewService(exPath, driver)
+	service, connString, err := database.NewService(exPath, driver)
 
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error starting database")
@@ -103,15 +103,18 @@ func main() {
 
 	}
 
-	if err != nil {
-		fmt.Println(err)
+	if driver == "sqlite" {
+		connString = "file:" + connString + "?_pragma=foreign_keys(1)&_busy_timeout=3000"
 	}
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
 
 	if *waDebug != "" {
 		dbLog := waLog.Stdout("Database", *waDebug, true)
-		container, err = sqlstore.New("sqlite", "file:"+exPath+"/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=3000", dbLog)
+		container, err = sqlstore.New(driver, connString, dbLog)
 	} else {
-		container, err = sqlstore.New("sqlite", "file:"+exPath+"/dbdata/main.db?_pragma=foreign_keys(1)&_busy_timeout=3000", nil)
+		container, err = sqlstore.New(driver, connString, nil)
 	}
 	if err != nil {
 		panic(err)

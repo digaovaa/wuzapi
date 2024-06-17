@@ -44,7 +44,7 @@ type service struct {
 	db *gorm.DB
 }
 
-func startMysql() (*gorm.DB, error) {
+func startMysql() (*gorm.DB, string, error) {
 	log.Info().Msg("Starting mysql")
 
 	dbHost := os.Getenv("DB_HOST")
@@ -58,13 +58,13 @@ func startMysql() (*gorm.DB, error) {
 
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not open/create " + dsn)
-		return nil, err
+		return nil, "", err
 	}
 
-	return db, nil
+	return db, dsn, nil
 }
 
-func startPostgres() (*gorm.DB, error) {
+func startPostgres() (*gorm.DB, string, error) {
 
 	log.Info().Msg("Starting postgres")
 
@@ -79,49 +79,50 @@ func startPostgres() (*gorm.DB, error) {
 	fmt.Println(connString)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not open/create " + connString)
-		return nil, err
+		return nil, "", err
 	}
 
 	fmt.Println("Connected to database")
-	return db, nil
+	return db, connString, nil
 }
 
-func startSqlite(exPath string) (*gorm.DB, error) {
+func startSqlite(exPath string) (*gorm.DB, string, error) {
 	log.Info().Msg("Starting sqlite")
 
 	db, err := gorm.Open(sqlite.Open(exPath+"/dbdata/users.db"), &gorm.Config{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not open/create " + exPath + "/dbdata/users.db")
-		return nil, err
+		return nil, "", err
 	}
 
 	db.AutoMigrate(&User{})
 
-	return db, nil
+	return db, exPath + "/dbdata/users.db", nil
 }
 
-func NewService(exPath string, driver string) (Service, error) {
+func NewService(exPath string, driver string) (Service, string, error) {
 	var err error
 	var db *gorm.DB
+	var connString string
 
 	switch driver {
 	case "mysql":
-		db, err = startMysql()
+		db, connString, err = startMysql()
 	case "postgres":
-		db, err = startPostgres()
+		db, connString, err = startPostgres()
 	default:
-		db, err = startSqlite(exPath)
+		db, connString, err = startSqlite(exPath)
 	}
 
 	db.AutoMigrate(&User{})
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	s := &service{db: db}
 
-	return s, nil
+	return s, connString, nil
 }
 
 func (s *service) CreateUser(user *User) (int, error) {
