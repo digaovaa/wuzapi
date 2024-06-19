@@ -44,6 +44,25 @@ paths:
               schema:
                 example: { "code": 200, "data": { "webhook": "https://example.net/webhook" }, "success": true }
 
+  /session/pairphone:
+      post:
+        tags:
+          - Session
+        summary: Gets pair by phone code
+        description: Gets the code to enter into whatsapp client when pairing by phone number instead of QR code
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#definitions/Pairphone'
+        responses:
+          200:
+            description: Response
+            content:
+              application/json:
+                schema:
+                  example: { "code": 200, "data": { "LinkingCode" : "9H3J-H3J8" }, "success": true }                
   /session/connect:
     post:
       tags:
@@ -1007,6 +1026,14 @@ definitions:
       Phone:
         type: object
         example: ["5491155553934","5491155553935"]
+  Pairphone:
+    type: object
+    required:
+      - Phone
+    properties:
+      Phone:
+        type: object
+        example: "5491155553934"
   Checkavatar:
     type: object
     required:

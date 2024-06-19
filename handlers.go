@@ -520,6 +520,76 @@ func (s *server) GetQR() http.HandlerFunc {
 	}
 }
 
+// Pair by Phone. Retrieves the code to pair by phone number instead of QR
+func (s *server) PairPhone() http.HandlerFunc {
+
+	type pairStruct struct {
+		Phone string
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		userid, _ := strconv.Atoi(txtid)
+		user, err1 := s.service.GetUserById(userid)
+
+		if err1 != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
+			return
+		}
+
+		decoder := json.NewDecoder(r.Body)
+		base64qrcode := ""
+		var err3 error
+
+		if clientPointer[userid] == nil {
+			// s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			base64qrcode, err3 = s.startClient(userid, "PAIRPHONE", user.Token, []string{})
+
+			if err3 != nil {
+				s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not start client"))
+				return
+			}
+		}
+
+		var t pairStruct
+		err2 := decoder.Decode(&t)
+		if err2 != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			return
+		}
+
+		if t.Phone == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			return
+		}
+
+		isLoggedIn := clientPointer[userid].IsLoggedIn()
+		if isLoggedIn {
+			log.Error().Msg(fmt.Sprintf("%s", "Already paired"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Already paired"))
+			return
+		}
+
+		linkingCode, err := clientPointer[userid].PairPhone(t.Phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+
+		if err != nil {
+			log.Error().Msg(fmt.Sprintf("%s", err))
+			s.Respond(w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		response := map[string]interface{}{"pairingcode": linkingCode, "base64qrcode": base64qrcode}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+		return
+	}
+}
+
 // Logs out device from Whatsapp (requires to scan QR next time)
 func (s *server) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -539,6 +609,8 @@ func (s *server) Logout() http.HandlerFunc {
 					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not perform logout"))
 					return
 				} else {
+					s.service.SetQrcode(userid, "")
+					s.service.SetDisconnected(userid)
 					log.Info().Str("jid", jid).Msg("Logged out")
 					killchannel[userid] <- true
 				}

@@ -15,12 +15,11 @@ type Middleware = alice.Constructor
 
 func (s *server) routes() {
 
-    ex, err := os.Executable()
-    if err != nil {
-        panic(err)
-    }
-    exPath := filepath.Dir(ex)
-
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
 
 	if *logType == "json" {
 		log = zerolog.New(os.Stdout).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Str("host", *address).Logger()
@@ -51,8 +50,10 @@ func (s *server) routes() {
 	s.router.Handle("/session/connect", c.Then(s.Connect())).Methods("POST")
 	s.router.Handle("/session/disconnect", c.Then(s.Disconnect())).Methods("POST")
 	s.router.Handle("/session/logout", c.Then(s.Logout())).Methods("POST")
+	s.router.Handle("/session/pairphone", c.Then(s.PairPhone())).Methods("POST")
 	s.router.Handle("/session/status", c.Then(s.GetStatus())).Methods("GET")
 	s.router.Handle("/session/qr", c.Then(s.GetQR())).Methods("GET")
+	// s.router.Handle("/session/listallsessions", c.Then(s.ListAllSessions())).Methods("GET")
 
 	s.router.Handle("/webhook", c.Then(s.SetWebhook())).Methods("POST")
 	s.router.Handle("/webhook", c.Then(s.GetWebhook())).Methods("GET")
@@ -61,16 +62,16 @@ func (s *server) routes() {
 	s.router.Handle("/chat/send/image", c.Then(s.SendImage())).Methods("POST")
 	s.router.Handle("/chat/send/audio", c.Then(s.SendAudio())).Methods("POST")
 	s.router.Handle("/chat/send/document", c.Then(s.SendDocument())).Methods("POST")
-//	s.router.Handle("/chat/send/template", c.Then(s.SendTemplate())).Methods("POST")
+	//	s.router.Handle("/chat/send/template", c.Then(s.SendTemplate())).Methods("POST")
 	s.router.Handle("/chat/send/video", c.Then(s.SendVideo())).Methods("POST")
 	s.router.Handle("/chat/send/sticker", c.Then(s.SendSticker())).Methods("POST")
 	s.router.Handle("/chat/send/location", c.Then(s.SendLocation())).Methods("POST")
 	s.router.Handle("/chat/send/contact", c.Then(s.SendContact())).Methods("POST")
 	s.router.Handle("/chat/react", c.Then(s.React())).Methods("POST")
-	s.router.Handle("/chat/send/buttons",     c.Then(s.SendButtons())).Methods("POST")
-	s.router.Handle("/chat/send/list",     c.Then(s.SendList())).Methods("POST")
+	s.router.Handle("/chat/send/buttons", c.Then(s.SendButtons())).Methods("POST")
+	s.router.Handle("/chat/send/list", c.Then(s.SendList())).Methods("POST")
 
-	s.router.Handle("/user/info", c.Then(s.GetUser())).Methods("POST")
+	s.router.Handle("/user/info", c.Then(s.GetUser())).Methods("GET")
 	s.router.Handle("/user/check", c.Then(s.CheckUser())).Methods("POST")
 	s.router.Handle("/user/avatar", c.Then(s.GetAvatar())).Methods("POST")
 	s.router.Handle("/user/contacts", c.Then(s.GetContacts())).Methods("GET")
@@ -88,9 +89,8 @@ func (s *server) routes() {
 	s.router.Handle("/group/photo", c.Then(s.SetGroupPhoto())).Methods("POST")
 	s.router.Handle("/group/name", c.Then(s.SetGroupName())).Methods("POST")
 
-
 	s.router.Handle("/users/create", c.Then(s.CreateUser())).Methods("POST")
 	s.router.Handle("/users/delete/{id}", c.Then(s.DeleteUser())).Methods("DELETE")
 
-	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(exPath+"/static/")))
+	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(exPath + "/static/")))
 }

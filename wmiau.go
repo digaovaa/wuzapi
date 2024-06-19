@@ -202,7 +202,267 @@ func parseJID(arg string) (types.JID, bool) {
 	}
 }
 
-func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) {
+// func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) {
+
+// 	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
+// 	var deviceStore *store.Device
+// 	var err error
+
+// 	fmt.Println("clientPointer", clientPointer)
+// 	if clientPointer[userID] != nil {
+// 		isConnected := clientPointer[userID].IsConnected()
+// 		if isConnected == true {
+// 			return
+// 		}
+// 	}
+
+// 	/*  container is initialized on main to have just one connection and avoid sqlite locks
+
+// 		dbDirectory := "dbdata"
+// 	    _, err = os.Stat(dbDirectory)
+// 	    if os.IsNotExist(err) {
+// 	        errDir := os.MkdirAll(dbDirectory, 0751)
+// 	        if errDir != nil {
+// 	            panic("Could not create dbdata directory")
+// 	        }
+// 	    }
+
+// 		var container *sqlstore.Container
+
+// 		if(*waDebug!="") {
+// 			dbLog := waLog.Stdout("Database", *waDebug, true)
+// 			container, err = sqlstore.New("sqlite", "file:./dbdata/main.db?_foreign_keys=on", dbLog)
+// 		} else {
+// 			container, err = sqlstore.New("sqlite", "file:./dbdata/main.db?_foreign_keys=on", nil)
+// 		}
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	*/
+
+// 	if textjid != "" && textjid != "PAIRPHONE" {
+// 		jid, _ := parseJID(textjid)
+
+// 		// If you want multiple sessions, remember their JIDs and use .GetDevice(jid) or .GetAllDevices() instead.
+// 		//deviceStore, err := container.GetFirstDevice()
+// 		deviceStore, err = container.GetDevice(jid)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	} else {
+// 		log.Warn().Msg("No jid found. Creating new device")
+// 		deviceStore = container.NewDevice()
+// 	}
+
+// 	if deviceStore == nil {
+// 		log.Warn().Msg("No store found. Creating new one")
+// 		deviceStore = container.NewDevice()
+// 	}
+
+// 	//store.CompanionProps.PlatformType = waE2E.CompanionProps_CHROME.Enum()
+// 	//store.CompanionProps.Os = proto.String("Mac OS")
+
+// 	osName := "Windows"
+// 	store.DeviceProps.PlatformType = waProto.DeviceProps_CHROME.Enum()
+// 	store.DeviceProps.Os = &osName
+
+// 	clientLog := waLog.Stdout("Client", *waDebug, true)
+// 	var client *whatsmeow.Client
+
+// 	if *waDebug != "" {
+// 		client = whatsmeow.NewClient(deviceStore, clientLog)
+// 	} else {
+// 		client = whatsmeow.NewClient(deviceStore, nil)
+// 	}
+
+// 	clientPointer[userID] = client
+// 	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service}
+// 	mycli.eventHandlerID = mycli.WAClient.AddEventHandler(mycli.myEventHandler)
+// 	clientHttp[userID] = resty.New()
+// 	clientHttp[userID].SetRedirectPolicy(resty.FlexibleRedirectPolicy(15))
+
+// 	if *waDebug == "DEBUG" {
+// 		clientHttp[userID].SetDebug(true)
+// 	}
+
+// 	clientHttp[userID].SetTimeout(5 * time.Second)
+// 	clientHttp[userID].SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+// 	if textjid == "PAIRPHONE" {
+// 		qrChan, err1 := client.GetQRChannel(context.Background())
+
+// 		if err1 != nil {
+// 			// This error means that we're already logged in, so ignore it.
+// 			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
+// 				log.Error().Err(err).Msg("Failed to get QR channel")
+// 			}
+// 		} else {
+
+// 			err = client.Connect() // Si no conectamos no se puede generar QR
+// 			if err != nil {
+// 				panic(err)
+// 			}
+
+// 			for evt := range qrChan {
+// 				if evt.Event == "code" {
+// 					// Store encoded/embeded base64 QR on database for retrieval with the /qr endpoint
+// 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
+// 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
+
+// 					// checar postgres sintexe
+// 					err := s.service.SetQrcode(userID, base64qrcode)
+// 					/* sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+// 					_, err := s.db.Exec(sqlStmt, base64qrcode, userID) */
+// 					if err != nil {
+// 						log.Error().Err(err).Msg("Could not update QR code")
+// 					}
+
+// 					// pairingCode, err := client.PairPhone("+5551993811607", true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+
+// 					// if err != nil {
+// 					// 	log.Error().Err(err).Msg("Failed to pair phone")
+// 					// }
+// 					// log.Info().Str("pairingCode", pairingCode).Msg("Pairing code")
+// 				} else if evt.Event == "timeout" {
+// 					// Clear QR code from DB on timeout
+// 					// checar postgres sintexe
+
+// 					err := s.service.SetQrcode(userID, "")
+// 					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+// 					_, err := s.db.Exec(sqlStmt, "", userID) */
+// 					if err != nil {
+// 						log.Error().Err(err).Msg("Could not update QR code")
+// 					}
+
+// 					log.Warn().Msg("QR timeout killing channel")
+// 					delete(clientPointer, userID)
+// 					killchannel[userID] <- true
+// 				} else if evt.Event == "success" {
+// 					log.Info().Msg("QR pairing ok!")
+// 					// Clear QR code after pairing
+
+// 					err := s.service.SetQrcode(userID, "")
+
+// 					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+// 					_, err := s.db.Exec(sqlStmt, "", userID) */
+// 					if err != nil {
+// 						log.Error().Err(err).Msg("Could not update QR code")
+// 					}
+
+// 				} else {
+// 					log.Info().Str("event", evt.Event).Msg("Login event")
+// 				}
+// 			}
+// 			return
+// 		}
+// 	}
+
+// 	if client.Store.ID == nil {
+// 		// No ID stored, new login
+
+// 		qrChan, err := client.GetQRChannel(context.Background())
+// 		if err != nil {
+// 			// This error means that we're already logged in, so ignore it.
+// 			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
+// 				log.Error().Err(err).Msg("Failed to get QR channel")
+// 			}
+// 		} else {
+// 			err = client.Connect() // Si no conectamos no se puede generar QR
+// 			if err != nil {
+// 				panic(err)
+// 			}
+
+// 			for evt := range qrChan {
+// 				if evt.Event == "code" {
+// 					// Display QR code in terminal (useful for testing/developing)
+// 					if *logType != "json" {
+// 						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+// 						fmt.Println("QR code:\n", evt.Code)
+// 					}
+// 					// Store encoded/embeded base64 QR on database for retrieval with the /qr endpoint
+// 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
+// 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
+
+// 					// checar postgres sintexe
+// 					err := s.service.SetQrcode(userID, base64qrcode)
+// 					/* sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+// 					_, err := s.db.Exec(sqlStmt, base64qrcode, userID) */
+// 					if err != nil {
+// 						log.Error().Err(err).Msg("Could not update QR code")
+// 					}
+
+// 					// pairingCode, err := client.PairPhone("+5551993811607", true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+
+// 					// if err != nil {
+// 					// 	log.Error().Err(err).Msg("Failed to pair phone")
+// 					// }
+// 					// log.Info().Str("pairingCode", pairingCode).Msg("Pairing code")
+// 				} else if evt.Event == "timeout" {
+// 					// Clear QR code from DB on timeout
+// 					// checar postgres sintexe
+
+// 					err := s.service.SetQrcode(userID, "")
+// 					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+// 					_, err := s.db.Exec(sqlStmt, "", userID) */
+// 					if err != nil {
+// 						log.Error().Err(err).Msg("Could not update QR code")
+// 					}
+
+// 					log.Warn().Msg("QR timeout killing channel")
+// 					delete(clientPointer, userID)
+// 					killchannel[userID] <- true
+// 				} else if evt.Event == "success" {
+// 					log.Info().Msg("QR pairing ok!")
+// 					// Clear QR code after pairing
+
+// 					err := s.service.SetQrcode(userID, "")
+
+// 					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
+// 					_, err := s.db.Exec(sqlStmt, "", userID) */
+// 					if err != nil {
+// 						log.Error().Err(err).Msg("Could not update QR code")
+// 					}
+
+// 				} else {
+// 					log.Info().Str("event", evt.Event).Msg("Login event")
+// 				}
+// 			}
+// 		}
+
+// 	} else {
+// 		// Already logged in, just connect
+// 		log.Info().Msg("Already logged in, just connect")
+// 		err = client.Connect()
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	}
+
+// 	// Keep connected client live until disconnected/killed
+// 	for {
+// 		select {
+// 		case <-killchannel[userID]:
+// 			log.Info().Str("userid", strconv.Itoa(userID)).Msg("Received kill signal")
+// 			client.Disconnect()
+// 			delete(clientPointer, userID)
+
+// 			// checar postgres sintexe
+
+// 			err := s.service.SetDisconnected(userID)
+// 			/* sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
+// 			_, err := s.db.Exec(sqlStmt, userID) */
+// 			if err != nil {
+// 				log.Error().Err(err).Msg("Could not update user as disconnected")
+// 			}
+
+// 			return
+// 		default:
+// 			time.Sleep(1000 * time.Millisecond)
+// 			//log.Info().Str("jid",textjid).Msg("Loop the loop")
+// 		}
+// 	}
+// }
+
+func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) (string, error) {
 
 	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
 	var deviceStore *store.Device
@@ -212,42 +472,15 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	if clientPointer[userID] != nil {
 		isConnected := clientPointer[userID].IsConnected()
 		if isConnected == true {
-			return
+			return "", nil
 		}
 	}
 
-	/*  container is initialized on main to have just one connection and avoid sqlite locks
-
-		dbDirectory := "dbdata"
-	    _, err = os.Stat(dbDirectory)
-	    if os.IsNotExist(err) {
-	        errDir := os.MkdirAll(dbDirectory, 0751)
-	        if errDir != nil {
-	            panic("Could not create dbdata directory")
-	        }
-	    }
-
-		var container *sqlstore.Container
-
-		if(*waDebug!="") {
-			dbLog := waLog.Stdout("Database", *waDebug, true)
-			container, err = sqlstore.New("sqlite", "file:./dbdata/main.db?_foreign_keys=on", dbLog)
-		} else {
-			container, err = sqlstore.New("sqlite", "file:./dbdata/main.db?_foreign_keys=on", nil)
-		}
-		if err != nil {
-			panic(err)
-		}
-	*/
-
-	if textjid != "" {
+	if textjid != "" && textjid != "PAIRPHONE" {
 		jid, _ := parseJID(textjid)
-
-		// If you want multiple sessions, remember their JIDs and use .GetDevice(jid) or .GetAllDevices() instead.
-		//deviceStore, err := container.GetFirstDevice()
 		deviceStore, err = container.GetDevice(jid)
 		if err != nil {
-			panic(err)
+			return "", err
 		}
 	} else {
 		log.Warn().Msg("No jid found. Creating new device")
@@ -259,11 +492,8 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		deviceStore = container.NewDevice()
 	}
 
-	//store.CompanionProps.PlatformType = waE2E.CompanionProps_CHROME.Enum()
-	//store.CompanionProps.Os = proto.String("Mac OS")
-
-	osName := "Mac OS 10"
-	store.DeviceProps.PlatformType = waProto.DeviceProps_UNKNOWN.Enum()
+	osName := "Windows"
+	store.DeviceProps.PlatformType = waProto.DeviceProps_CHROME.Enum()
 	store.DeviceProps.Os = &osName
 
 	clientLog := waLog.Stdout("Client", *waDebug, true)
@@ -287,47 +517,32 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 
 	clientHttp[userID].SetTimeout(5 * time.Second)
 	clientHttp[userID].SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	if textjid == "PAIRPHONE" {
+		qrChan, err1 := client.GetQRChannel(context.Background())
 
-	if client.Store.ID == nil {
-		// No ID stored, new login
-
-		qrChan, err := client.GetQRChannel(context.Background())
-		if err != nil {
-			// This error means that we're already logged in, so ignore it.
+		if err1 != nil {
 			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
 				log.Error().Err(err).Msg("Failed to get QR channel")
 			}
 		} else {
-			err = client.Connect() // Si no conectamos no se puede generar QR
+
+			err = client.Connect()
 			if err != nil {
-				panic(err)
+				return "", err
 			}
 
 			for evt := range qrChan {
 				if evt.Event == "code" {
-					// Display QR code in terminal (useful for testing/developing)
-					if *logType != "json" {
-						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-						fmt.Println("QR code:\n", evt.Code)
-					}
-					// Store encoded/embeded base64 QR on database for retrieval with the /qr endpoint
 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
 
-					// checar postgres sintexe
 					err := s.service.SetQrcode(userID, base64qrcode)
-					/* sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
-					_, err := s.db.Exec(sqlStmt, base64qrcode, userID) */
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}
+					return base64qrcode, nil // Return base64qrcode here
 				} else if evt.Event == "timeout" {
-					// Clear QR code from DB on timeout
-					// checar postgres sintexe
-
 					err := s.service.SetQrcode(userID, "")
-					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
-					_, err := s.db.Exec(sqlStmt, "", userID) */
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}
@@ -337,16 +552,59 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					killchannel[userID] <- true
 				} else if evt.Event == "success" {
 					log.Info().Msg("QR pairing ok!")
-					// Clear QR code after pairing
-
 					err := s.service.SetQrcode(userID, "")
+					if err != nil {
+						log.Error().Err(err).Msg("Could not update QR code")
+					}
+				} else {
+					log.Info().Str("event", evt.Event).Msg("Login event")
+				}
+			}
+			return "", nil
+		}
+	}
 
-					/* 	sqlStmt := `UPDATE users SET qrcode=? WHERE id=?`
-					_, err := s.db.Exec(sqlStmt, "", userID) */
+	if client.Store.ID == nil {
+		qrChan, err := client.GetQRChannel(context.Background())
+		if err != nil {
+			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
+				log.Error().Err(err).Msg("Failed to get QR channel")
+			}
+		} else {
+			err = client.Connect()
+			if err != nil {
+				return "", err
+			}
+
+			for evt := range qrChan {
+				if evt.Event == "code" {
+					if *logType != "json" {
+						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+						fmt.Println("QR code:\n", evt.Code)
+					}
+					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
+					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
+
+					err := s.service.SetQrcode(userID, base64qrcode)
+					if err != nil {
+						log.Error().Err(err).Msg("Could not update QR code")
+					}
+					return base64qrcode, nil // Return base64qrcode here
+				} else if evt.Event == "timeout" {
+					err := s.service.SetQrcode(userID, "")
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}
 
+					log.Warn().Msg("QR timeout killing channel")
+					delete(clientPointer, userID)
+					killchannel[userID] <- true
+				} else if evt.Event == "success" {
+					log.Info().Msg("QR pairing ok!")
+					err := s.service.SetQrcode(userID, "")
+					if err != nil {
+						log.Error().Err(err).Msg("Could not update QR code")
+					}
 				} else {
 					log.Info().Str("event", evt.Event).Msg("Login event")
 				}
@@ -354,15 +612,13 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		}
 
 	} else {
-		// Already logged in, just connect
 		log.Info().Msg("Already logged in, just connect")
 		err = client.Connect()
 		if err != nil {
-			panic(err)
+			return "", err
 		}
 	}
 
-	// Keep connected client live until disconnected/killed
 	for {
 		select {
 		case <-killchannel[userID]:
@@ -370,19 +626,14 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 			client.Disconnect()
 			delete(clientPointer, userID)
 
-			// checar postgres sintexe
-
 			err := s.service.SetDisconnected(userID)
-			/* sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
-			_, err := s.db.Exec(sqlStmt, userID) */
 			if err != nil {
 				log.Error().Err(err).Msg("Could not update user as disconnected")
 			}
 
-			return
+			return "", nil
 		default:
 			time.Sleep(1000 * time.Millisecond)
-			//log.Info().Str("jid",textjid).Msg("Loop the loop")
 		}
 	}
 }

@@ -1,6 +1,6 @@
 # WUZAPI
 
-<img src="static/favicon.ico" width="30"> WuzAPI is an implementation 
+<img src="static/favicon.ico" width="30"> goLinkAPI is an implementation 
 of [@tulir/whatsmeow](https://github.com/tulir/whatsmeow) library as a 
 simple RESTful API service with multiple device support and concurrent 
 sessions.
