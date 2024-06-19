@@ -8,7 +8,7 @@ services:
       - ./dbdata:/app/dbdata
       - ./files:/app/files
     ports:
-      - 8080:8080
+      - 8081:8080
     environment:
       - SECRET_KEY=${SECRET_KEY}
       - DB_HOST=${DB_HOST}
