@@ -31,13 +31,17 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
+
 	//"google.golang.org/protobuf/proto"
+
+	"github.com/go-redis/redis/v8"
 )
 
 // var wlog waLog.Logger
 var clientPointer = make(map[int]*whatsmeow.Client)
 var clientHttp = make(map[int]*resty.Client)
 var historySyncID int32
+var ctx = context.Background()
 
 type MyClient struct {
 	WAClient       *whatsmeow.Client
@@ -389,7 +393,9 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	postmap["event"] = rawEvt
 	dowebhook := 0
 	path := ""
-
+	redisuri := os.Getenv("REDIS_URI")
+	redispass := os.Getenv("REDIS_PASS")
+	dbname := os.Getenv("DB_NAME")
 	ex, err := os.Executable()
 	if err != nil {
 		panic(err)
@@ -674,6 +680,39 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
 	}
 
+	if redisuri != "" {
+		values, _ := json.Marshal(postmap)
+
+		data := make(map[string]string)
+		data["jsonData"] = string(values)
+		data["token"] = mycli.token
+
+		redisdb := redis.NewClient(&redis.Options{
+			Addr:     redisuri,
+			Password: redispass,
+			DB:       0,
+		})
+
+		// Testa a conexão
+		_, err := redisdb.Ping(ctx).Result()
+		if err != nil {
+			log.Error().Err(err).Msg("Erro ao conectar ao Redis")
+		}
+
+		fmt.Println("Conectado ao Redis")
+
+		// Nome da fila
+		queueName := fmt.Sprintf("bull:%s-Whatsmeow-Messages", dbname)
+
+		// Adiciona mensagens na fila
+		err1 := addToQueue(redisdb, queueName, data)
+		if err1 != nil {
+			log.Error().Err(err1).Msg("Erro ao adicionar mensagem à fila")
+		}
+
+		fmt.Println("Mensagens adicionadas à fila")
+	}
+
 	if dowebhook == 1 {
 		// call webhook
 		webhookurl := ""
@@ -703,8 +742,33 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				data["token"] = mycli.token
 				go callHookFile(webhookurl, data, mycli.userID, path)
 			}
-		} else {
-			log.Warn().Str("userid", strconv.Itoa(mycli.userID)).Msg("No webhook set for user")
 		}
+		// } else {
+		// 	values, _ := json.Marshal(postmap)
+
+		// 	data := make(map[string]string)
+		// 	data["jsonData"] = string(values)
+		// 	data["token"] = mycli.token
+
+		// 	fmt.Println("MENSAGEM", data)
+		// 	log.Warn().Str("userid", strconv.Itoa(mycli.userID)).Msg("No webhook set for user")
+		// }
 	}
+}
+
+func addToQueue(client *redis.Client, queueName string, message map[string]string) error {
+	data, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	// Cria a chave com o nome da fila
+	queueKey := "bull:" + queueName
+
+	// Adiciona a mensagem à fila dentro da chave da fila
+	if err := client.RPush(ctx, queueKey, data).Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
