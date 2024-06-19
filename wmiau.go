@@ -517,106 +517,78 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 
 	clientHttp[userID].SetTimeout(5 * time.Second)
 	clientHttp[userID].SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
-	if textjid == "PAIRPHONE" {
+
+	generateQRCode := func() (string, error) {
 		qrChan, err1 := client.GetQRChannel(context.Background())
 
 		if err1 != nil {
-			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
-				log.Error().Err(err).Msg("Failed to get QR channel")
-			}
-		} else {
-
-			err = client.Connect()
-			if err != nil {
-				return "", err
-			}
-
-			for evt := range qrChan {
-				if evt.Event == "code" {
-					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
-					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
-
-					err := s.service.SetQrcode(userID, base64qrcode)
-					if err != nil {
-						log.Error().Err(err).Msg("Could not update QR code")
-					}
-					return base64qrcode, nil // Return base64qrcode here
-				} else if evt.Event == "timeout" {
-					err := s.service.SetQrcode(userID, "")
-					if err != nil {
-						log.Error().Err(err).Msg("Could not update QR code")
-					}
-
-					log.Warn().Msg("QR timeout killing channel")
-					delete(clientPointer, userID)
-					killchannel[userID] <- true
-				} else if evt.Event == "success" {
-					log.Info().Msg("QR pairing ok!")
-					err := s.service.SetQrcode(userID, "")
-					if err != nil {
-						log.Error().Err(err).Msg("Could not update QR code")
-					}
-				} else {
-					log.Info().Str("event", evt.Event).Msg("Login event")
-				}
+			if !errors.Is(err1, whatsmeow.ErrQRStoreContainsID) {
+				log.Error().Err(err1).Msg("Failed to get QR channel")
+				return "", err1
 			}
 			return "", nil
 		}
-	}
 
-	if client.Store.ID == nil {
-		qrChan, err := client.GetQRChannel(context.Background())
-		if err != nil {
-			if !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
-				log.Error().Err(err).Msg("Failed to get QR channel")
-			}
-		} else {
-			err = client.Connect()
-			if err != nil {
-				return "", err
-			}
-
-			for evt := range qrChan {
-				if evt.Event == "code" {
-					if *logType != "json" {
-						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-						fmt.Println("QR code:\n", evt.Code)
-					}
-					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
-					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
-
-					err := s.service.SetQrcode(userID, base64qrcode)
-					if err != nil {
-						log.Error().Err(err).Msg("Could not update QR code")
-					}
-					return base64qrcode, nil // Return base64qrcode here
-				} else if evt.Event == "timeout" {
-					err := s.service.SetQrcode(userID, "")
-					if err != nil {
-						log.Error().Err(err).Msg("Could not update QR code")
-					}
-
-					log.Warn().Msg("QR timeout killing channel")
-					delete(clientPointer, userID)
-					killchannel[userID] <- true
-				} else if evt.Event == "success" {
-					log.Info().Msg("QR pairing ok!")
-					err := s.service.SetQrcode(userID, "")
-					if err != nil {
-						log.Error().Err(err).Msg("Could not update QR code")
-					}
-				} else {
-					log.Info().Str("event", evt.Event).Msg("Login event")
-				}
-			}
-		}
-
-	} else {
-		log.Info().Msg("Already logged in, just connect")
 		err = client.Connect()
 		if err != nil {
 			return "", err
 		}
+
+		for evt := range qrChan {
+			if evt.Event == "code" {
+				if *logType != "json" {
+					qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+					fmt.Println("QR code:\n", evt.Code)
+				}
+
+				image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
+				base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
+
+				err := s.service.SetQrcode(userID, base64qrcode)
+				if err != nil {
+					log.Error().Err(err).Msg("Could not update QR code")
+				}
+				return base64qrcode, nil
+			} else if evt.Event == "timeout" {
+				err := s.service.SetQrcode(userID, "")
+				if err != nil {
+					log.Error().Err(err).Msg("Could not update QR code")
+				}
+
+				log.Warn().Msg("QR timeout killing channel")
+				delete(clientPointer, userID)
+				killchannel[userID] <- true
+				break
+			} else if evt.Event == "success" {
+				log.Info().Msg("QR pairing ok!")
+				err := s.service.SetQrcode(userID, "")
+				if err != nil {
+					log.Error().Err(err).Msg("Could not update QR code")
+				}
+			} else {
+				log.Info().Str("event", evt.Event).Msg("Login event")
+			}
+		}
+
+		return "", nil
+	}
+
+	if textjid == "PAIRPHONE" {
+		return generateQRCode()
+	}
+
+	if client.Store.ID == nil {
+		base64qrcode, err := generateQRCode()
+		if err != nil {
+			return "", err
+		}
+		return base64qrcode, nil
+	}
+
+	log.Info().Msg("Already logged in, just connect")
+	err = client.Connect()
+	if err != nil {
+		return "", err
 	}
 
 	for {
