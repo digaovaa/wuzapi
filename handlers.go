@@ -531,12 +531,12 @@ func (s *server) PairPhone() http.HandlerFunc {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
 		userid, _ := strconv.Atoi(txtid)
-		user, err1 := s.service.GetUserById(userid)
+		// user, err1 := s.service.GetUserById(userid)
 
-		if err1 != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
-			return
-		}
+		// if err1 != nil {
+		// 	s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
+		// 	return
+		// }
 
 		decoder := json.NewDecoder(r.Body)
 		base64qrcode := ""
@@ -544,7 +544,7 @@ func (s *server) PairPhone() http.HandlerFunc {
 
 		if clientPointer[userid] == nil {
 			// s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			base64qrcode, err3 = s.startClient(userid, "PAIRPHONE", user.Token, []string{})
+			// base64qrcode, err3 = s.startClient(userid, "PAIRPHONE", user.Token, []string{})
 
 			if err3 != nil {
 				s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not start client"))

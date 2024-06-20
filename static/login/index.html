@@ -1,9 +1,8 @@
 <!doctype html>
 <html lang="pt-br">
-
 <style>
   .btn-blue {
-    background-color:#065183;
+    background-color: #065183;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -31,11 +30,6 @@
 
 <body class="px-4 py-4">
   <div class="container border rounded-3">
-    <!-- <div class="row justify-content-md-center">
-      <div class="col col-md-auto">
-        <img src="./logo.png" style="width:375px;height:70px; margin:auto;" alt="TOGI logo">
-      </div>
-    </div> -->
     <div class="row justify-content-md-center px-4 py-5">
       <div class="col col-md-auto">
         <h1 class="display-5 fw-bold">Bem-vindo à goLinkAPI</h1>
@@ -88,10 +82,11 @@
     crossorigin="anonymous"></script>
 
   <script type="text/javascript">
-
     let baseUrl = window.location.origin;
     let scanned = false;
     let pairingCode = false;
+    let retryCount = 0;
+    const maxRetries = 10; // Maximum number of attempts to fetch QR code
 
     async function wait(time) {
       return new Promise(resolve => {
@@ -124,7 +119,7 @@
       clearInterval(scanInterval);
       scanInterval = setInterval(checkStatus, 1000);
       console.log("showQr");
-      while (!scanned && !pairingCode) {
+      while (!scanned && !pairingCode && retryCount < maxRetries) {
         console.log("not scanned");
         var qrData = await getQr();
         if (qrData.success == true) {
@@ -148,6 +143,10 @@
           var imageParent = document.getElementById("qr");
           imageParent.style.display = "none";
         }
+        retryCount++;
+      }
+      if (retryCount >= maxRetries) {
+        document.getElementById("connectstatus").innerHTML = "Número máximo de tentativas alcançado. Por favor, recarregue a página.";
       }
     }
 
@@ -299,7 +298,7 @@
     }
 
     if (notoken == 1) {
-      document.getElementById("connectstatus").innerHTML = "No auth token specified";
+      document.getElementById("connectstatus").innerHTML = "Nenhum token de autenticação especificado";
     } else {
 
       token = param["token"][0];
@@ -310,14 +309,14 @@
             if (status.data.Connected === true) {
               showQr();
             } else {
-              console.log("Not connected, attempting to connect.");
+              console.log("Não conectado, tentando conectar.");
               connect().then((data) => { console.log("promise connect 1"); console.log(data); });
             }
           } else {
             if (status.data.Connected === false) {
               connect().then((data) => { console.log("promise connect 2"); console.log(data); });
             }
-            document.getElementById("connectstatus").innerHTML = "Connected!";
+            document.getElementById("connectstatus").innerHTML = "Conectado!";
             scanned = true;
             var imageParent = document.getElementById("qr");
             imageParent.style.display = "none";
@@ -330,14 +329,14 @@
               if (data.success == true) {
                 showQr();
               } else {
-                document.getElementById("connectstatus").innerHTML = "Could not connect";
+                document.getElementById("connectstatus").innerHTML = "Não foi possível conectar";
               }
             });
           } else if (status.error == "Unauthorized") {
-            document.getElementById("connectstatus").innerHTML = `Bad Authentication`;
+            document.getElementById("connectstatus").innerHTML = `Autenticação inválida`;
           }
         } else {
-          document.getElementById("connectstatus").innerHTML = `Bad Authentication ${status.Status}`;
+          document.getElementById("connectstatus").innerHTML = `Autenticação inválida ${status.Status}`;
         }
         return;
       });
