@@ -85,8 +85,8 @@
     let baseUrl = window.location.origin;
     let scanned = false;
     let pairingCode = false;
-    let retryCount = 0;
-    const maxRetries = 10; // Maximum number of attempts to fetch QR code
+    let retryCount = 1;
+    const maxRetries = 1; // Maximum number of attempts to fetch QR code
 
     async function wait(time) {
       return new Promise(resolve => {
@@ -118,8 +118,8 @@
     async function showQr() {
       clearInterval(scanInterval);
       scanInterval = setInterval(checkStatus, 1000);
-      console.log("showQr");
-      while (!scanned && !pairingCode && retryCount < maxRetries) {
+      console.log("showQr", scanned, pairingCode);
+      while (!scanned ) {
         console.log("not scanned");
         var qrData = await getQr();
         if (qrData.success == true) {
@@ -139,15 +139,11 @@
           scanned = true;
           clearInterval(scanInterval);
           document.getElementById("connectstatus").innerHTML = "Tempo esgotado! Atualize a página quando estiver pronto para escanear o QR code";
-          location.reload(); // Refresh the page
+          // location.reload(); // Refresh the page
           var imageParent = document.getElementById("qr");
           imageParent.style.display = "none";
         }
-        retryCount++;
-      }
-      if (retryCount >= maxRetries) {
-        document.getElementById("connectstatus").innerHTML = "Número máximo de tentativas alcançado. Por favor, recarregue a página.";
-      }
+      }     
     }
 
     async function connect() {
@@ -186,14 +182,21 @@
       return data;
     }
 
+    async function logout() {
+      const myHeaders = new Headers();
+      myHeaders.append('token', token);
+      res = await fetch(baseUrl + "/session/logout", {
+        method: "POST",
+        headers: myHeaders,
+      });
+      data = await res.json();
+      return data;
+    }
+
     async function disconnect() {
       const myHeaders = new Headers();
       myHeaders.append('token', token);
-      // res = await fetch(baseUrl + "/session/disconnect", {
-      //   method: "POST",
-      //   headers: myHeaders,
-      // });
-      res = await fetch(baseUrl + "/session/logout", {
+      res = await fetch(baseUrl + "/session/disconnect", {
         method: "POST",
         headers: myHeaders,
       });
@@ -247,7 +250,6 @@
       document.getElementById("qr").style.display = "block";
       document.getElementById("phoneLink").style.display = "block";
       document.getElementById("qrLink").style.display = "none";
-      showQr();
     });
 
     document.getElementById("pairButton").addEventListener("click", async () => {
@@ -269,15 +271,17 @@
     });
 
     document.getElementById("disconnectButton").addEventListener("click", async () => {
-      const disconnectData = await disconnect();
+      const disconnectData = await logout();
       if (disconnectData.success) {
         document.getElementById("connectstatus").innerHTML = "Disconnected!";
         document.getElementById("disconnectButton").style.display = "none";
         document.getElementById("phoneLink").style.display = "block"; // Show the phone number link again
         document.getElementById("qrLink").style.display = "block";
+        document.getElementById("connectstatus").innerHTML = "Desconectado com sucesso! Para reconectar, atualize a página.";
+        var imageParent = document.getElementById("qr");
+        imageParent.style.display = "none";
         scanned = false;
         pairingCode = false;
-        location.reload(); // Refresh the page
       } else {
         document.getElementById("connectstatus").innerHTML = "Failed to disconnect";
       }
@@ -304,6 +308,7 @@
       token = param["token"][0];
 
       statusRequest().then((status) => {
+        console.log("statusRequest", status);
         if (status.success == true) {
           if (status.data.LoggedIn === false) {
             if (status.data.Connected === true) {

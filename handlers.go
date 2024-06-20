@@ -256,8 +256,8 @@ func (s *server) Connect() http.HandlerFunc {
 			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
 			return
 		}
-
-		if clientPointer[userid] != nil {
+		fmt.Println("clientPointer[userid]", clientPointer[userid])
+		if clientPointer[userid] != nil && clientPointer[userid].IsConnected() == true {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Connected"))
 			return
 		} else {
@@ -293,7 +293,7 @@ func (s *server) Connect() http.HandlerFunc {
 
 			log.Info().Str("jid", jid).Msg("Attempt to connect")
 			killchannel[userid] = make(chan bool)
-			go s.startClient(userid, jid, token, subscribedEvents)
+			go s.startClient(userid, jid, token, subscribedEvents, false, make(chan bool))
 
 			if t.Immediate == false {
 				log.Warn().Msg("Waiting 10 seconds")
@@ -359,11 +359,13 @@ func (s *server) Disconnect() http.HandlerFunc {
 				}
 				return
 			} else {
+				killchannel[userid] <- true
 				log.Warn().Str("jid", jid).Msg("Ignoring disconnect as it was not connected")
 				s.Respond(w, r, http.StatusInternalServerError, errors.New("Cannot disconnect because it is not logged in"))
 				return
 			}
 		} else {
+			killchannel[userid] <- true
 			log.Warn().Str("jid", jid).Msg("Ignoring disconnect as it was not connected")
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("Cannot disconnect because it is not logged in"))
 			return
@@ -531,30 +533,18 @@ func (s *server) PairPhone() http.HandlerFunc {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
 		userid, _ := strconv.Atoi(txtid)
-		// user, err1 := s.service.GetUserById(userid)
+		user, err := s.service.GetUserById(userid)
+		var t pairStruct
 
-		// if err1 != nil {
-		// 	s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
-		// 	return
-		// }
-
-		decoder := json.NewDecoder(r.Body)
-		base64qrcode := ""
-		var err3 error
-
-		if clientPointer[userid] == nil {
-			// s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			// base64qrcode, err3 = s.startClient(userid, "PAIRPHONE", user.Token, []string{})
-
-			if err3 != nil {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not start client"))
-				return
-			}
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
+			return
 		}
 
-		var t pairStruct
-		err2 := decoder.Decode(&t)
-		if err2 != nil {
+		decoder := json.NewDecoder(r.Body)
+
+		err = decoder.Decode(&t)
+		if err != nil {
 			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
 			return
 		}
@@ -564,22 +554,37 @@ func (s *server) PairPhone() http.HandlerFunc {
 			return
 		}
 
+		if clientPointer[userid] != nil && clientPointer[userid].IsLoggedIn() == true {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Connected"))
+			return
+		} else {
+			log.Info().Msg("RODRIGO: " + fmt.Sprintf("%v", clientPointer[userid].IsConnected()))
+			if clientPointer[userid] != nil && clientPointer[userid].IsConnected() == true {
+				s.Logout()
+			}
+			// Criar um canal para sinalizar quando o código de emparelhamento e o QR code estiverem prontos
+			done := make(chan bool)
+			go s.startClient(userid, t.Phone, user.Token, []string{}, true, done)
+
+			// Aguardar até receber a sinalização do canal
+			<-done
+		}
+
 		isLoggedIn := clientPointer[userid].IsLoggedIn()
 		if isLoggedIn {
-			log.Error().Msg(fmt.Sprintf("%s", "Already paired"))
+			log.Error().Msg("Already paired")
 			s.Respond(w, r, http.StatusBadRequest, errors.New("Already paired"))
 			return
 		}
 
-		linkingCode, err := clientPointer[userid].PairPhone(t.Phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
-
+		// Buscar o usuário novamente para garantir que temos os dados atualizados
+		user, err = s.service.GetUserById(userid)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
-			s.Respond(w, r, http.StatusBadRequest, err)
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
 			return
 		}
 
-		response := map[string]interface{}{"pairingcode": linkingCode, "base64qrcode": base64qrcode}
+		response := map[string]interface{}{"pairingcode": user.PairingCode, "base64qrcode": user.Qrcode}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
@@ -602,25 +607,28 @@ func (s *server) Logout() http.HandlerFunc {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
 			return
 		} else {
+			fmt.Println("RODRIGO: " + fmt.Sprintf("%v", clientPointer[userid].IsLoggedIn()) + " " + fmt.Sprintf("%v", clientPointer[userid].IsConnected()))
 			if clientPointer[userid].IsLoggedIn() == true && clientPointer[userid].IsConnected() == true {
 				err := clientPointer[userid].Logout()
+				log.Info().Msg("RODRIGO: " + fmt.Sprintf("%v", err))
 				if err != nil {
 					log.Error().Str("jid", jid).Msg("Could not perform logout")
 					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not perform logout"))
 					return
 				} else {
+					// killchannel[userid] <- true
 					s.service.SetQrcode(userid, "")
 					s.service.SetDisconnected(userid)
-					log.Info().Str("jid", jid).Msg("Logged out")
-					killchannel[userid] <- true
+					// s.Respond(w, r, http.StatusOK, string("Logged out"))
+					// return
 				}
 			} else {
 				if clientPointer[userid].IsConnected() == true {
-					log.Warn().Str("jid", jid).Msg("Ignoring logout as it was not logged in")
+					log.Warn().Str("jid", jid).Msg("Ignoring logout as it was not logged in 620")
 					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not disconnect as it was not logged in"))
 					return
 				} else {
-					log.Warn().Str("jid", jid).Msg("Ignoring logout as it was not connected")
+					log.Warn().Str("jid", jid).Msg("Ignoring logout as it was not connected 624")
 					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not disconnect as it was not connected"))
 					return
 				}
@@ -629,9 +637,11 @@ func (s *server) Logout() http.HandlerFunc {
 
 		response := map[string]interface{}{"Details": "Logged out"}
 		responseJson, err := json.Marshal(response)
+		fmt.Println("RODRIGO: " + fmt.Sprintf("%v", responseJson) + " " + fmt.Sprintf("%v", err))
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			log.Info().Str("jid", jid).Msg("Logged out")
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		return

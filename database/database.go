@@ -25,19 +25,21 @@ type Service interface {
 	GetUserById(id int) (*User, error)
 	GetUserByToken(token string) (*User, error)
 	ListConnectedUsers() ([]*User, error)
+	SetPairingCode(id int, pairingCode string) error
 }
 
 type User struct {
 	gorm.Model
-	ID         uint   `gorm:"primaryKey"`
-	Name       string `gorm:"type:text;not null"`
-	Token      string `gorm:"type:text;not null"`
-	Webhook    string `gorm:"type:text;not null;default:''"`
-	Jid        string `gorm:"type:text;not null;default:''"`
-	Qrcode     string `gorm:"type:text;not null;default:''"`
-	Connected  int    `gorm:"type:integer"`
-	Expiration int    `gorm:"type:integer"`
-	Events     string `gorm:"type:text;not null;default:'All'"`
+	ID          uint   `gorm:"primaryKey"`
+	Name        string `gorm:"type:text;not null"`
+	Token       string `gorm:"type:text;not null"`
+	Webhook     string `gorm:"type:text;not null;default:''"`
+	Jid         string `gorm:"type:text;not null;default:''"`
+	Qrcode      string `gorm:"type:text;not null;default:''"`
+	Connected   int    `gorm:"type:integer"`
+	Expiration  int    `gorm:"type:integer"`
+	Events      string `gorm:"type:text;not null;default:'All'"`
+	PairingCode string `gorm:"type:text;not null;default:''"`
 }
 
 type service struct {
@@ -221,6 +223,19 @@ func (s *service) SetEvents(id int, events string) error {
 
 	if err != nil {
 		log.Error().Err(err).Msg("Could not set events")
+
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) SetPairingCode(id int, pairingCode string) error {
+
+	err := s.db.Model(&User{}).Where("id = ?", id).Update("pairing_code", pairingCode).Error
+
+	if err != nil {
+		log.Error().Err(err).Msg("Could not set pairing code")
 
 		return err
 	}

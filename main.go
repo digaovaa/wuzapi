@@ -110,15 +110,18 @@ func main() {
 	// 	fmt.Println(err)
 	// }
 
-	if *waDebug != "" {
-		dbLog := waLog.Stdout("Database", *waDebug, true)
-		container, err = sqlstore.New(driver, connString, dbLog)
-	} else {
-		container, err = sqlstore.New(driver, connString, nil)
-	}
+	dbLog := waLog.Stdout("Database", "ERROR", true)
+	container, err = sqlstore.New(driver, connString, dbLog)
+	// if *waDebug != "" {
+	// 	dbLog := waLog.Stdout("Database", "ERROR", true)
+	// 	container, err = sqlstore.New(driver, connString, dbLog)
+	// } else {
+	// 	container, err = sqlstore.New(driver, connString, nil)
+	// }
 	if err != nil {
 		panic(err)
 	}
+	container.Upgrade()
 
 	s := &server{
 		router: mux.NewRouter(),
