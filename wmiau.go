@@ -65,7 +65,7 @@ func (s *server) connectOnStartup() {
 	}
 
 	for _, user := range users {
-		log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
+		// log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
 
 		v := Values{map[string]string{
 			"Id":      strconv.Itoa(int(user.ID)),
@@ -174,7 +174,7 @@ func parseJID(arg string) (types.JID, bool) {
 	phonenumber = strings.Split(arg, "@")[0]
 	phonenumber = strings.Split(phonenumber, ".")[0]
 
-	fmt.Println("phonenumber", phonenumber)
+	// fmt.Println("phonenumber", phonenumber)
 	/* 	b := true
 	   	for _, c := range phonenumber {
 	   		if c < '0' || c > '9' {
@@ -210,7 +210,11 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	var err error
 	instance := os.Getenv("INSTANCE")
 
-	fmt.Println("clientPointer", clientPointer)
+	if instance == "" {
+		log.Error().Msg("INSTANCE is not set")
+		return
+	}
+
 	if clientPointer[userID] != nil {
 		isConnected := clientPointer[userID].IsConnected()
 		if isConnected == true && !pairing {

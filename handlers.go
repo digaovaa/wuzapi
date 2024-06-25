@@ -56,8 +56,8 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			secret := r.Header.Get("secret")
 			my_secret := os.Getenv("SECRET_KEY")
 
-			fmt.Println("secret: " + secret)
-			fmt.Println("my_secret: " + my_secret)
+			// fmt.Println("secret: " + secret)
+			// fmt.Println("my_secret: " + my_secret)
 
 			if secret != my_secret {
 				s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
@@ -87,7 +87,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			// Checks DB from matching user and store user values in context
 
 			user, err := s.service.GetUserByToken(token)
-			fmt.Println("user", user)
+			// fmt.Println("user", user)
 
 			if err != nil {
 				s.Respond(w, r, http.StatusInternalServerError, err)
@@ -170,7 +170,7 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 			// checar sintaxe postgres 1
 
 			user, err := s.service.GetUserByToken(token)
-			fmt.Println("user", user)
+			// fmt.Println("user", user)
 
 			if err != nil {
 
@@ -256,7 +256,7 @@ func (s *server) Connect() http.HandlerFunc {
 			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
 			return
 		}
-		fmt.Println("clientPointer[userid]", clientPointer[userid])
+		// fmt.Println("clientPointer[userid]", clientPointer[userid])
 		if clientPointer[userid] != nil && clientPointer[userid].IsConnected() == true {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Connected"))
 			return
@@ -635,7 +635,7 @@ func (s *server) Logout() http.HandlerFunc {
 
 		response := map[string]interface{}{"Details": "Logged out"}
 		responseJson, err := json.Marshal(response)
-		fmt.Println("RODRIGO: " + fmt.Sprintf("%v", responseJson) + " " + fmt.Sprintf("%v", err))
+		// fmt.Println("RODRIGO: " + fmt.Sprintf("%v", responseJson) + " " + fmt.Sprintf("%v", err))
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
@@ -3005,7 +3005,7 @@ func (s *server) CreateUser() http.HandlerFunc {
 			return
 		}
 
-		fmt.Println(new_user)
+		// fmt.Println(new_user)
 
 		if new_user.Token == "" {
 			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Token in Payload"))

@@ -79,7 +79,7 @@ func startPostgres() (*gorm.DB, string, error) {
 
 	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo", dbHost, dbUser, dbPass, dbName, dbPort)
 	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
-	fmt.Println(connString)
+	// fmt.Println(connString)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not open/create " + connString)
 		return nil, "", err
@@ -273,6 +273,11 @@ func (s *service) GetUserByToken(token string) (*User, error) {
 func (s *service) ListConnectedUsers() ([]*User, error) {
 	var users []*User
 	instance := os.Getenv("INSTANCE")
+
+	if instance == "" {
+		panic("INSTANCE is not set")
+	}
+
 	err := s.db.Where("connected = ? AND instance = ?", 1, instance).Find(&users).Error
 
 	if err != nil {
