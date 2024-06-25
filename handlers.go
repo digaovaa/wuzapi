@@ -602,22 +602,20 @@ func (s *server) Logout() http.HandlerFunc {
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
 		jid := r.Context().Value("userinfo").(Values).Get("Jid")
 		userid, _ := strconv.Atoi(txtid)
-
+		instance := os.Getenv("INSTANCE")
 		if clientPointer[userid] == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
 			return
 		} else {
-			fmt.Println("RODRIGO: " + fmt.Sprintf("%v", clientPointer[userid].IsLoggedIn()) + " " + fmt.Sprintf("%v", clientPointer[userid].IsConnected()))
 			if clientPointer[userid].IsLoggedIn() == true && clientPointer[userid].IsConnected() == true {
 				err := clientPointer[userid].Logout()
-				log.Info().Msg("RODRIGO: " + fmt.Sprintf("%v", err))
 				if err != nil {
 					log.Error().Str("jid", jid).Msg("Could not perform logout")
 					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not perform logout"))
 					return
 				} else {
 					// killchannel[userid] <- true
-					s.service.SetQrcode(userid, "")
+					s.service.SetQrcode(userid, "", instance)
 					s.service.SetDisconnected(userid)
 					// s.Respond(w, r, http.StatusOK, string("Logged out"))
 					// return
@@ -2992,8 +2990,9 @@ func (s *server) Respond(w http.ResponseWriter, r *http.Request, status int, dat
 func (s *server) CreateUser() http.HandlerFunc {
 
 	type userStruct struct {
-		Token string
-		Name  string
+		Token    string
+		Name     string
+		Instance string
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -3018,9 +3017,12 @@ func (s *server) CreateUser() http.HandlerFunc {
 			return
 		}
 
+		new_user.Instance = os.Getenv("INSTANCE")
+
 		id, err := s.service.CreateUser(&database.User{
-			Token: new_user.Token,
-			Name:  new_user.Name,
+			Token:    new_user.Token,
+			Name:     new_user.Name,
+			Instance: new_user.Instance,
 		})
 
 		if err != nil {
@@ -3029,7 +3031,7 @@ func (s *server) CreateUser() http.HandlerFunc {
 			return
 		}
 
-		response := map[string]interface{}{"id": id, "name": new_user.Name, "token": new_user.Token}
+		response := map[string]interface{}{"id": id, "name": new_user.Name, "token": new_user.Token, "instance": new_user.Instance}
 		responseJson, err := json.Marshal(response)
 		fmt.Println(string(responseJson))
 		if err != nil {

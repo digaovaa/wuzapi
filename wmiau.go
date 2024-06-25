@@ -51,6 +51,7 @@ type MyClient struct {
 	subscriptions  []string
 	db             *sql.DB
 	service        database.Service
+	instance       string
 }
 
 // Connects to Whatsapp Websocket on server startup if last state was connected
@@ -207,6 +208,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
 	var deviceStore *store.Device
 	var err error
+	instance := os.Getenv("INSTANCE")
 
 	fmt.Println("clientPointer", clientPointer)
 	if clientPointer[userID] != nil {
@@ -246,7 +248,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	}
 
 	clientPointer[userID] = client
-	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service}
+	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service, instance}
 	mycli.eventHandlerID = mycli.WAClient.AddEventHandler(mycli.myEventHandler)
 	clientHttp[userID] = resty.New()
 	clientHttp[userID].SetRedirectPolicy(resty.FlexibleRedirectPolicy(15))
@@ -285,7 +287,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
 
-					err := s.service.SetQrcode(userID, base64qrcode)
+					err := s.service.SetQrcode(userID, base64qrcode, instance)
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}
@@ -296,7 +298,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 							log.Error().Err(err).Msg("Failed to pair phone")
 						}
 
-						errPar := s.service.SetPairingCode(userID, pairingCode)
+						errPar := s.service.SetPairingCode(userID, pairingCode, instance)
 						if errPar != nil {
 							log.Error().Err(err).Msg("Could not update QR code")
 						}
@@ -307,7 +309,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					// Sinalizar que a operação foi concluída
 					done <- true
 				} else if evt.Event == "timeout" {
-					err := s.service.SetQrcode(userID, "")
+					err := s.service.SetQrcode(userID, "", instance)
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}
@@ -317,7 +319,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					killchannel[userID] <- true
 				} else if evt.Event == "success" {
 					log.Info().Msg("QR pairing ok!")
-					err := s.service.SetQrcode(userID, "")
+					err := s.service.SetQrcode(userID, "", instance)
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}

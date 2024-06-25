@@ -16,7 +16,7 @@ type Service interface {
 	CreateUser(user *User) (int, error)
 	UpdateUser(user *User) error
 	DeleteUser(id int) error
-	SetQrcode(id int, qrcode string) error
+	SetQrcode(id int, qrcode string, instance string) error
 	SetWebhook(id int, webhook string) error
 	SetConnected(id int) error
 	SetDisconnected(id int) error
@@ -25,7 +25,7 @@ type Service interface {
 	GetUserById(id int) (*User, error)
 	GetUserByToken(token string) (*User, error)
 	ListConnectedUsers() ([]*User, error)
-	SetPairingCode(id int, pairingCode string) error
+	SetPairingCode(id int, pairingCode string, instance string) error
 }
 
 type User struct {
@@ -40,6 +40,7 @@ type User struct {
 	Expiration  int    `gorm:"type:integer"`
 	Events      string `gorm:"type:text;not null;default:'All'"`
 	PairingCode string `gorm:"type:text;not null;default:''"`
+	Instance    string `gorm:"type:text;not null;default:''"`
 }
 
 type service struct {
@@ -153,8 +154,8 @@ func (s *service) UpdateUser(user *User) error {
 	return nil
 }
 
-func (s *service) SetQrcode(id int, qrcode string) error {
-	err := s.db.Model(&User{}).Where("id = ?", id).Update("qrcode", qrcode).Error
+func (s *service) SetQrcode(id int, qrcode string, instance string) error {
+	err := s.db.Model(&User{}).Where("id = ? AND instance = ?", id, instance).Update("qrcode", qrcode).Error
 
 	if err != nil {
 		log.Error().Err(err).Msg("Could not set qrcode")
@@ -230,9 +231,9 @@ func (s *service) SetEvents(id int, events string) error {
 	return nil
 }
 
-func (s *service) SetPairingCode(id int, pairingCode string) error {
+func (s *service) SetPairingCode(id int, pairingCode string, instance string) error {
 
-	err := s.db.Model(&User{}).Where("id = ?", id).Update("pairing_code", pairingCode).Error
+	err := s.db.Model(&User{}).Where("id = ? AND instance = ?", id, instance).Update("pairing_code", pairingCode).Error
 
 	if err != nil {
 		log.Error().Err(err).Msg("Could not set pairing code")
@@ -271,8 +272,8 @@ func (s *service) GetUserByToken(token string) (*User, error) {
 
 func (s *service) ListConnectedUsers() ([]*User, error) {
 	var users []*User
-
-	err := s.db.Where("connected = ?", 1).Find(&users).Error
+	instance := os.Getenv("INSTANCE")
+	err := s.db.Where("connected = ? AND instance = ?", 1, instance).Find(&users).Error
 
 	if err != nil {
 		log.Error().Err(err).Msg("Could not list users")

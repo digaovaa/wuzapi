@@ -13,7 +13,7 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/vincent-petithory/dataurl v1.0.0
-	go.mau.fi/whatsmeow v0.0.0-20240619210240-329c2336a6f1
+	go.mau.fi/whatsmeow v0.0.0-20240625083845-6acab596dd8c
 	google.golang.org/protobuf v1.34.2
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/driver/postgres v1.5.4
