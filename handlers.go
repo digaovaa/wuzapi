@@ -336,8 +336,8 @@ func (s *server) Disconnect() http.HandlerFunc {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
-		if clientPointer[userid].IsConnected() == true {
-			if clientPointer[userid].IsLoggedIn() == true {
+		if clientPointer[userid].IsConnected() {
+			if clientPointer[userid].IsLoggedIn() {
 				log.Info().Str("jid", jid).Msg("Disconnection successfull")
 
 				// checar sintaxe postgres 3
@@ -390,12 +390,12 @@ func (s *server) GetWebhook() http.HandlerFunc {
 		}
 
 		user, err := s.service.GetUserById(userid)
-		/* rows, err := s.db.Query("SELECT webhook,events FROM users WHERE id=? LIMIT 1", txtid)
+		//rows, err := s.db.Query("SELECT webhook,events FROM users WHERE id=? LIMIT 1", txtid)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Could not get webhook: %v", err)))
 			return
 		}
-		defer rows.Close()
+		/*defer rows.Close()
 		for rows.Next() {
 			err = rows.Scan(&webhook, &events)
 			if err != nil {
@@ -476,7 +476,7 @@ func (s *server) GetQR() http.HandlerFunc {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		} else {
-			if clientPointer[userid].IsConnected() == false {
+			if !clientPointer[userid].IsConnected() {
 				s.Respond(w, r, http.StatusInternalServerError, errors.New("not connected"))
 				return
 			}
@@ -503,7 +503,7 @@ func (s *server) GetQR() http.HandlerFunc {
 				s.Respond(w, r, http.StatusInternalServerError, err)
 				return
 			} */
-			if clientPointer[userid].IsLoggedIn() == true {
+			if clientPointer[userid].IsLoggedIn() {
 				s.Respond(w, r, http.StatusInternalServerError, errors.New("already loggedin"))
 				return
 			}
@@ -553,11 +553,11 @@ func (s *server) PairPhone() http.HandlerFunc {
 			return
 		}
 
-		if clientPointer[userid] != nil && clientPointer[userid].IsLoggedIn() == true {
+		if clientPointer[userid] != nil && clientPointer[userid].IsLoggedIn() {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("already connected"))
 			return
 		} else {
-			if clientPointer[userid] != nil && clientPointer[userid].IsConnected() == true {
+			if clientPointer[userid] != nil && clientPointer[userid].IsConnected() {
 				s.Logout()
 			}
 			// Criar um canal para sinalizar quando o código de emparelhamento e o QR code estiverem prontos
@@ -605,7 +605,7 @@ func (s *server) Logout() http.HandlerFunc {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		} else {
-			if clientPointer[userid].IsLoggedIn() == true && clientPointer[userid].IsConnected() == true {
+			if clientPointer[userid].IsLoggedIn() && clientPointer[userid].IsConnected() {
 				err := clientPointer[userid].Logout()
 				if err != nil {
 					log.Error().Str("jid", jid).Msg("Could not perform logout")
@@ -1278,11 +1278,11 @@ func (s *server) SendContact() http.HandlerFunc {
 			return
 		}
 		if t.Name == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Name in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing name in payload"))
 			return
 		}
 		if t.Vcard == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Vcard in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing vcard in payload"))
 			return
 		}
 
@@ -1367,11 +1367,11 @@ func (s *server) SendLocation() http.HandlerFunc {
 			return
 		}
 		if t.Latitude == 0 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Latitude in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing latitude in payload"))
 			return
 		}
 		if t.Longitude == 0 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Longitude in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing longitude in payload"))
 			return
 		}
 
@@ -1462,12 +1462,12 @@ func (s *server) SendButtons() http.HandlerFunc {
 		}
 
 		if t.Title == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Title in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing title in payload"))
 			return
 		}
 
 		if len(t.Buttons) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("missing Buttons in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing buttons in payload"))
 			return
 		}
 		if len(t.Buttons) > 3 {
@@ -1704,7 +1704,7 @@ func (s *server) SendMessage() http.HandlerFunc {
 		}
 
 		if t.Body == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Body in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing body in payload"))
 			return
 		}
 
@@ -2102,7 +2102,7 @@ func (s *server) GetAvatar() http.HandlerFunc {
 		}
 
 		if pic == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No avatar found"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no avatar found"))
 			return
 		}
 
@@ -2182,7 +2182,7 @@ func (s *server) ChatPresence() http.HandlerFunc {
 		}
 
 		if len(t.State) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing State in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing state in payload"))
 			return
 		}
 
@@ -2194,7 +2194,7 @@ func (s *server) ChatPresence() http.HandlerFunc {
 
 		err = clientPointer[userid].SendChatPresence(jid, types.ChatPresence(t.State), types.ChatPresenceMedia(t.Media))
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure sending chat presence to Whatsapp servers"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("failure sending chat presence to Whatsapp servers"))
 			return
 		}
 
@@ -2565,19 +2565,19 @@ func (s *server) React() http.HandlerFunc {
 		}
 
 		if t.Body == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Body in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing body in payload"))
 			return
 		}
 
 		recipient, ok := parseJID(t.Phone)
 		if !ok {
 			log.Error().Msg(fmt.Sprintf("%s", err))
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Group JID"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse group jid"))
 			return
 		}
 
 		if t.Id == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Id in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing id in payload"))
 			return
 		} else {
 			msgid = t.Id
@@ -2653,18 +2653,18 @@ func (s *server) MarkRead() http.HandlerFunc {
 		}
 
 		if t.Chat.String() == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Chat in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing chat in payload"))
 			return
 		}
 
 		if len(t.Id) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Id in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing id in payload"))
 			return
 		}
 
 		err = clientPointer[userid].MarkRead(t.Id, time.Now(), t.Chat, t.Sender)
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure marking messages as read"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("failure marking messages as read"))
 			return
 		}
 
@@ -2748,7 +2748,7 @@ func (s *server) GetGroupInfo() http.HandlerFunc {
 
 		group, ok := parseJID(t.GroupJID)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Group JID"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse group jid"))
 			return
 		}
 
@@ -2801,7 +2801,7 @@ func (s *server) GetGroupInviteLink() http.HandlerFunc {
 
 		group, ok := parseJID(t.GroupJID)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Group JID"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse group jid"))
 			return
 		}
 
@@ -2855,12 +2855,12 @@ func (s *server) SetGroupPhoto() http.HandlerFunc {
 
 		group, ok := parseJID(t.GroupJID)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Group JID"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse group jid"))
 			return
 		}
 
 		if t.Image == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Image in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing image in payload"))
 			return
 		}
 
@@ -2875,7 +2875,7 @@ func (s *server) SetGroupPhoto() http.HandlerFunc {
 				filedata = dataURL.Data
 			}
 		} else {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Image data should start with \"data:image/jpeg;base64,\""))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("image data should start with \"data:image/jpeg;base64,\""))
 			return
 		}
 
@@ -2929,12 +2929,12 @@ func (s *server) SetGroupName() http.HandlerFunc {
 
 		group, ok := parseJID(t.GroupJID)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Group JID"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse group jid"))
 			return
 		}
 
 		if t.Name == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Name in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing name in payload"))
 			return
 		}
 
@@ -3006,12 +3006,12 @@ func (s *server) CreateUser() http.HandlerFunc {
 		// fmt.Println(new_user)
 
 		if new_user.Token == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Token in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing token in payload"))
 			return
 		}
 
 		if new_user.Name == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Name in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing name in payload"))
 			return
 		}
 
@@ -3025,7 +3025,7 @@ func (s *server) CreateUser() http.HandlerFunc {
 
 		if err != nil {
 			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to create user")
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure creating user"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("failure creating user"))
 			return
 		}
 
@@ -3051,7 +3051,7 @@ func (s *server) DeleteUser() http.HandlerFunc {
 
 		if err != nil {
 			log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("Failed to convert user id to int")
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("failure deleting user"))
 			return
 		}
 
@@ -3065,7 +3065,7 @@ func (s *server) DeleteUser() http.HandlerFunc {
 		if err != nil {
 			log.Err(err).Msg("Failed to delete user")
 
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Failure deleting user"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("failure deleting user"))
 			return
 		}
 
