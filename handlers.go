@@ -253,12 +253,12 @@ func (s *server) Connect() http.HandlerFunc {
 		var t connectStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 		// fmt.Println("clientPointer[userid]", clientPointer[userid])
-		if clientPointer[userid] != nil && clientPointer[userid].IsConnected() == true {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Connected"))
+		if clientPointer[userid] != nil && clientPointer[userid].IsConnected() {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("already connected"))
 			return
 		} else {
 
@@ -295,17 +295,17 @@ func (s *server) Connect() http.HandlerFunc {
 			killchannel[userid] = make(chan bool)
 			go s.startClient(userid, jid, token, subscribedEvents, false, make(chan bool))
 
-			if t.Immediate == false {
+			if !t.Immediate {
 				log.Warn().Msg("Waiting 10 seconds")
 				time.Sleep(10000 * time.Millisecond)
 
 				if clientPointer[userid] != nil {
 					if !clientPointer[userid].IsConnected() {
-						s.Respond(w, r, http.StatusInternalServerError, errors.New("Failed to Connect"))
+						s.Respond(w, r, http.StatusInternalServerError, errors.New("failed to connect"))
 						return
 					}
 				} else {
-					s.Respond(w, r, http.StatusInternalServerError, errors.New("Failed to Connect"))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New("failed to connect"))
 					return
 				}
 			}
@@ -333,13 +333,12 @@ func (s *server) Disconnect() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 		if clientPointer[userid].IsConnected() == true {
 			if clientPointer[userid].IsLoggedIn() == true {
 				log.Info().Str("jid", jid).Msg("Disconnection successfull")
-				killchannel[userid] <- true
 
 				// checar sintaxe postgres 3
 				err := s.service.SetEvents(userid, "")
@@ -349,6 +348,7 @@ func (s *server) Disconnect() http.HandlerFunc {
 				}
 				v := updateUserInfo(r.Context().Value("userinfo"), "Events", "")
 				userinfocache.Set(token, v, cache.NoExpiration)
+				killchannel[userid] <- true
 
 				response := map[string]interface{}{"Details": "Disconnected"}
 				responseJson, err := json.Marshal(response)
@@ -360,14 +360,14 @@ func (s *server) Disconnect() http.HandlerFunc {
 				return
 			} else {
 				killchannel[userid] <- true
-				log.Warn().Str("jid", jid).Msg("Ignoring disconnect as it was not connected")
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Cannot disconnect because it is not logged in"))
+				log.Warn().Str("jid", jid).Msg("ignoring disconnect as it was not connected")
+				s.Respond(w, r, http.StatusInternalServerError, errors.New("cannot disconnect because it is not logged in"))
 				return
 			}
 		} else {
 			killchannel[userid] <- true
-			log.Warn().Str("jid", jid).Msg("Ignoring disconnect as it was not connected")
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Cannot disconnect because it is not logged in"))
+			log.Warn().Str("jid", jid).Msg("ignoring disconnect as it was not connected")
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("cannot disconnect because it is not logged in"))
 			return
 		}
 	}
@@ -418,7 +418,7 @@ func (s *server) GetWebhook() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -461,7 +461,6 @@ func (s *server) SetWebhook() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
 	}
 }
 
@@ -474,11 +473,11 @@ func (s *server) GetQR() http.HandlerFunc {
 		code := ""
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		} else {
 			if clientPointer[userid].IsConnected() == false {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Not connected"))
+				s.Respond(w, r, http.StatusInternalServerError, errors.New("not connected"))
 				return
 			}
 
@@ -505,7 +504,7 @@ func (s *server) GetQR() http.HandlerFunc {
 				return
 			} */
 			if clientPointer[userid].IsLoggedIn() == true {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Loggedin"))
+				s.Respond(w, r, http.StatusInternalServerError, errors.New("already loggedin"))
 				return
 			}
 		}
@@ -518,7 +517,7 @@ func (s *server) GetQR() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -537,7 +536,7 @@ func (s *server) PairPhone() http.HandlerFunc {
 		var t pairStruct
 
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no user found"))
 			return
 		}
 
@@ -545,20 +544,19 @@ func (s *server) PairPhone() http.HandlerFunc {
 
 		err = decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		if clientPointer[userid] != nil && clientPointer[userid].IsLoggedIn() == true {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("Already Connected"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("already connected"))
 			return
 		} else {
-			log.Info().Msg("RODRIGO: " + fmt.Sprintf("%v", clientPointer[userid].IsConnected()))
 			if clientPointer[userid] != nil && clientPointer[userid].IsConnected() == true {
 				s.Logout()
 			}
@@ -573,14 +571,14 @@ func (s *server) PairPhone() http.HandlerFunc {
 		isLoggedIn := clientPointer[userid].IsLoggedIn()
 		if isLoggedIn {
 			log.Error().Msg("Already paired")
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Already paired"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("already paired"))
 			return
 		}
 
 		// Buscar o usuário novamente para garantir que temos os dados atualizados
 		user, err = s.service.GetUserById(userid)
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No user found"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no user found"))
 			return
 		}
 
@@ -591,7 +589,7 @@ func (s *server) PairPhone() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -604,30 +602,30 @@ func (s *server) Logout() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 		instance := os.Getenv("INSTANCE")
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		} else {
 			if clientPointer[userid].IsLoggedIn() == true && clientPointer[userid].IsConnected() == true {
 				err := clientPointer[userid].Logout()
 				if err != nil {
 					log.Error().Str("jid", jid).Msg("Could not perform logout")
-					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not perform logout"))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New("could not perform logout"))
 					return
 				} else {
-					// killchannel[userid] <- true
 					s.service.SetQrcode(userid, "", instance)
 					s.service.SetDisconnected(userid)
+					killchannel[userid] <- true
 					// s.Respond(w, r, http.StatusOK, string("Logged out"))
 					// return
 				}
 			} else {
-				if clientPointer[userid].IsConnected() == true {
-					log.Warn().Str("jid", jid).Msg("Ignoring logout as it was not logged in 620")
-					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not disconnect as it was not logged in"))
+				if clientPointer[userid].IsConnected() {
+					log.Warn().Str("jid", jid).Msg("ignoring logout as it was not logged in 620")
+					s.Respond(w, r, http.StatusInternalServerError, errors.New("could not disconnect as it was not logged in"))
 					return
 				} else {
-					log.Warn().Str("jid", jid).Msg("Ignoring logout as it was not connected 624")
-					s.Respond(w, r, http.StatusInternalServerError, errors.New("Could not disconnect as it was not connected"))
+					log.Warn().Str("jid", jid).Msg("ignoring logout as it was not connected 624")
+					s.Respond(w, r, http.StatusInternalServerError, errors.New("could not disconnect as it was not connected"))
 					return
 				}
 			}
@@ -642,7 +640,7 @@ func (s *server) Logout() http.HandlerFunc {
 			log.Info().Str("jid", jid).Msg("Logged out")
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -655,7 +653,7 @@ func (s *server) GetStatus() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -669,7 +667,7 @@ func (s *server) GetStatus() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -692,7 +690,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 		var resp whatsmeow.SendResponse
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -700,22 +698,22 @@ func (s *server) SendDocument() http.HandlerFunc {
 		var t documentStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		if t.Document == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Document in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing document in payload"))
 			return
 		}
 
 		if t.FileName == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing FileName in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing filename in payload"))
 			return
 		}
 
@@ -738,18 +736,18 @@ func (s *server) SendDocument() http.HandlerFunc {
 		if t.Document[0:29] == "data:application/octet-stream" {
 			dataURL, err := dataurl.DecodeString(t.Document)
 			if err != nil {
-				s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode base64 encoded data from payload"))
+				s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode base64 encoded data from payload"))
 				return
 			} else {
 				filedata = dataURL.Data
 				uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaDocument)
 				if err != nil {
-					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Failed to upload file: %v", err)))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to upload file: %v", err)))
 					return
 				}
 			}
 		} else {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Document data should start with \"data:application/octet-stream;base64,\""))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("document data should start with \"data:application/octet-stream;base64,\""))
 			return
 		}
 
@@ -786,7 +784,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -809,7 +807,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 		var resp whatsmeow.SendResponse
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -817,17 +815,17 @@ func (s *server) SendAudio() http.HandlerFunc {
 		var t audioStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		if t.Audio == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Audio in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing audio in payload"))
 			return
 		}
 
@@ -850,18 +848,18 @@ func (s *server) SendAudio() http.HandlerFunc {
 		if t.Audio[0:14] == "data:audio/ogg" {
 			dataURL, err := dataurl.DecodeString(t.Audio)
 			if err != nil {
-				s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode base64 encoded data from payload"))
+				s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode base64 encoded data from payload"))
 				return
 			} else {
 				filedata = dataURL.Data
 				uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaAudio)
 				if err != nil {
-					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Failed to upload file: %v", err)))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to upload file: %v", err)))
 					return
 				}
 			}
 		} else {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Audio data should start with \"data:audio/ogg;base64,\""))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("audio data should start with \"data:audio/ogg;base64,\""))
 			return
 		}
 
@@ -890,7 +888,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 
 		resp, err = clientPointer[userid].SendMessage(context.Background(), recipient, msg)
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Error sending message: %v", err)))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("error sending message: %v", err)))
 			return
 		}
 
@@ -902,7 +900,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -925,7 +923,7 @@ func (s *server) SendImage() http.HandlerFunc {
 		var resp whatsmeow.SendResponse
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -933,17 +931,17 @@ func (s *server) SendImage() http.HandlerFunc {
 		var t imageStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		if t.Image == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Image in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing image in payload"))
 			return
 		}
 
@@ -966,18 +964,18 @@ func (s *server) SendImage() http.HandlerFunc {
 		if t.Image[0:10] == "data:image" {
 			dataURL, err := dataurl.DecodeString(t.Image)
 			if err != nil {
-				s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode base64 encoded data from payload"))
+				s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode base64 encoded data from payload"))
 				return
 			} else {
 				filedata = dataURL.Data
 				uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaImage)
 				if err != nil {
-					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Failed to upload file: %v", err)))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to upload file: %v", err)))
 					return
 				}
 			}
 		} else {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Image data should start with \"data:image/png;base64,\""))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("image data should start with \"data:image/png;base64,\""))
 			return
 		}
 
@@ -1014,7 +1012,7 @@ func (s *server) SendImage() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1037,7 +1035,7 @@ func (s *server) SendSticker() http.HandlerFunc {
 		var resp whatsmeow.SendResponse
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1045,17 +1043,17 @@ func (s *server) SendSticker() http.HandlerFunc {
 		var t stickerStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		if t.Sticker == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Sticker in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing sticker in payload"))
 			return
 		}
 
@@ -1078,18 +1076,18 @@ func (s *server) SendSticker() http.HandlerFunc {
 		if t.Sticker[0:4] == "data" {
 			dataURL, err := dataurl.DecodeString(t.Sticker)
 			if err != nil {
-				s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode base64 encoded data from payload"))
+				s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode base64 encoded data from payload"))
 				return
 			} else {
 				filedata = dataURL.Data
 				uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaImage)
 				if err != nil {
-					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Failed to upload file: %v", err)))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to upload file: %v", err)))
 					return
 				}
 			}
 		} else {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Data should start with \"data:mime/type;base64,\""))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("data should start with \"data:mime/type;base64,\""))
 			return
 		}
 
@@ -1126,7 +1124,7 @@ func (s *server) SendSticker() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1150,7 +1148,7 @@ func (s *server) SendVideo() http.HandlerFunc {
 		var resp whatsmeow.SendResponse
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1158,17 +1156,17 @@ func (s *server) SendVideo() http.HandlerFunc {
 		var t imageStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		if t.Video == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Video in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing video in payload"))
 			return
 		}
 
@@ -1191,18 +1189,18 @@ func (s *server) SendVideo() http.HandlerFunc {
 		if t.Video[0:4] == "data" {
 			dataURL, err := dataurl.DecodeString(t.Video)
 			if err != nil {
-				s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode base64 encoded data from payload"))
+				s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode base64 encoded data from payload"))
 				return
 			} else {
 				filedata = dataURL.Data
 				uploaded, err = clientPointer[userid].Upload(context.Background(), filedata, whatsmeow.MediaVideo)
 				if err != nil {
-					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Failed to upload file: %v", err)))
+					s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to upload file: %v", err)))
 					return
 				}
 			}
 		} else {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Data should start with \"data:mime/type;base64,\""))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("data should start with \"data:mime/type;base64,\""))
 			return
 		}
 
@@ -1228,7 +1226,7 @@ func (s *server) SendVideo() http.HandlerFunc {
 
 		resp, err = clientPointer[userid].SendMessage(context.Background(), recipient, msg)
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Error sending message: %v", err)))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("error sending message: %v", err)))
 			return
 		}
 
@@ -1240,7 +1238,7 @@ func (s *server) SendVideo() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1261,7 +1259,7 @@ func (s *server) SendContact() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1272,11 +1270,11 @@ func (s *server) SendContact() http.HandlerFunc {
 		var t contactStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 		if t.Name == "" {
@@ -1328,7 +1326,7 @@ func (s *server) SendContact() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1350,7 +1348,7 @@ func (s *server) SendLocation() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1361,11 +1359,11 @@ func (s *server) SendLocation() http.HandlerFunc {
 		var t locationStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 		if t.Latitude == 0 {
@@ -1418,7 +1416,7 @@ func (s *server) SendLocation() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1443,7 +1441,7 @@ func (s *server) SendButtons() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1454,12 +1452,12 @@ func (s *server) SendButtons() http.HandlerFunc {
 		var t textStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
@@ -1479,7 +1477,7 @@ func (s *server) SendButtons() http.HandlerFunc {
 
 		recipient, ok := parseJID(t.Phone)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Phone"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse phone"))
 			return
 		}
 
@@ -1524,7 +1522,7 @@ func (s *server) SendButtons() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1665,7 +1663,7 @@ func (s *server) SendList() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -1685,7 +1683,7 @@ func (s *server) SendMessage() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1696,12 +1694,12 @@ func (s *server) SendMessage() http.HandlerFunc {
 		var t textStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
@@ -1754,7 +1752,7 @@ func (s *server) SendMessage() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -1784,7 +1782,7 @@ func (s *server) SendTemplate() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1796,12 +1794,12 @@ func (s *server) SendTemplate() http.HandlerFunc {
 		var t templateStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
@@ -1822,7 +1820,7 @@ func (s *server) SendTemplate() http.HandlerFunc {
 
 		recipient, ok := parseJID(t.Phone)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Phone"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse phone"))
 			return
 		}
 
@@ -1941,7 +1939,7 @@ func (s *server) CheckUser() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -1949,18 +1947,18 @@ func (s *server) CheckUser() http.HandlerFunc {
 		var t checkUserStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if len(t.Phone) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		resp, err := clientPointer[userid].IsOnWhatsApp(t.Phone)
 		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Failed to check if users are on WhatsApp: %s", err)))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to check if users are on WhatsApp: %s", err)))
 			return
 		}
 
@@ -1980,7 +1978,7 @@ func (s *server) CheckUser() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2001,7 +1999,7 @@ func (s *server) GetUser() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2009,12 +2007,12 @@ func (s *server) GetUser() http.HandlerFunc {
 		var t checkUserStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if len(t.Phone) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
@@ -2048,7 +2046,7 @@ func (s *server) GetUser() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2066,7 +2064,7 @@ func (s *server) GetAvatar() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2074,18 +2072,18 @@ func (s *server) GetAvatar() http.HandlerFunc {
 		var t getAvatarStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if len(t.Phone) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
 		jid, ok := parseJID(t.Phone)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Phone"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse phone"))
 			return
 		}
 
@@ -2116,7 +2114,7 @@ func (s *server) GetAvatar() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2129,7 +2127,7 @@ func (s *server) GetContacts() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2147,7 +2145,7 @@ func (s *server) GetContacts() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -2166,7 +2164,7 @@ func (s *server) ChatPresence() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2174,12 +2172,12 @@ func (s *server) ChatPresence() http.HandlerFunc {
 		var t chatPresenceStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if len(t.Phone) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
@@ -2190,7 +2188,7 @@ func (s *server) ChatPresence() http.HandlerFunc {
 
 		jid, ok := parseJID(t.Phone)
 		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Phone"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse phone"))
 			return
 		}
 
@@ -2207,7 +2205,7 @@ func (s *server) ChatPresence() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2233,7 +2231,7 @@ func (s *server) DownloadImage() http.HandlerFunc {
 		var imgdata []byte
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2252,7 +2250,7 @@ func (s *server) DownloadImage() http.HandlerFunc {
 		var t downloadImageStruct
 		err = decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2287,7 +2285,7 @@ func (s *server) DownloadImage() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2313,7 +2311,7 @@ func (s *server) DownloadDocument() http.HandlerFunc {
 		var docdata []byte
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2332,7 +2330,7 @@ func (s *server) DownloadDocument() http.HandlerFunc {
 		var t downloadDocumentStruct
 		err = decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2367,7 +2365,7 @@ func (s *server) DownloadDocument() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2393,7 +2391,7 @@ func (s *server) DownloadVideo() http.HandlerFunc {
 		var docdata []byte
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2412,7 +2410,7 @@ func (s *server) DownloadVideo() http.HandlerFunc {
 		var t downloadVideoStruct
 		err = decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2447,7 +2445,7 @@ func (s *server) DownloadVideo() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2473,7 +2471,7 @@ func (s *server) DownloadAudio() http.HandlerFunc {
 		var docdata []byte
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2492,7 +2490,7 @@ func (s *server) DownloadAudio() http.HandlerFunc {
 		var t downloadAudioStruct
 		err = decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2527,7 +2525,7 @@ func (s *server) DownloadAudio() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2546,7 +2544,7 @@ func (s *server) React() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2557,12 +2555,12 @@ func (s *server) React() http.HandlerFunc {
 		var t textStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
 		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in payload"))
 			return
 		}
 
@@ -2623,7 +2621,7 @@ func (s *server) React() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -2642,7 +2640,7 @@ func (s *server) MarkRead() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2650,7 +2648,7 @@ func (s *server) MarkRead() http.HandlerFunc {
 		var t markReadStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2677,7 +2675,7 @@ func (s *server) MarkRead() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		return
+		// return
 	}
 }
 
@@ -2694,7 +2692,7 @@ func (s *server) ListGroups() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2719,7 +2717,7 @@ func (s *server) ListGroups() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -2736,7 +2734,7 @@ func (s *server) GetGroupInfo() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2744,7 +2742,7 @@ func (s *server) GetGroupInfo() http.HandlerFunc {
 		var t getGroupInfoStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2771,7 +2769,7 @@ func (s *server) GetGroupInfo() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -2789,7 +2787,7 @@ func (s *server) GetGroupInviteLink() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2797,7 +2795,7 @@ func (s *server) GetGroupInviteLink() http.HandlerFunc {
 		var t getGroupInfoStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2825,7 +2823,7 @@ func (s *server) GetGroupInviteLink() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -2843,7 +2841,7 @@ func (s *server) SetGroupPhoto() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2851,7 +2849,7 @@ func (s *server) SetGroupPhoto() http.HandlerFunc {
 		var t setGroupPhotoStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2871,7 +2869,7 @@ func (s *server) SetGroupPhoto() http.HandlerFunc {
 		if t.Image[0:13] == "data:image/jp" {
 			dataURL, err := dataurl.DecodeString(t.Image)
 			if err != nil {
-				s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode base64 encoded data from payload"))
+				s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode base64 encoded data from payload"))
 				return
 			} else {
 				filedata = dataURL.Data
@@ -2899,7 +2897,7 @@ func (s *server) SetGroupPhoto() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -2917,7 +2915,7 @@ func (s *server) SetGroupName() http.HandlerFunc {
 		userid, _ := strconv.Atoi(txtid)
 
 		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
 		}
 
@@ -2925,7 +2923,7 @@ func (s *server) SetGroupName() http.HandlerFunc {
 		var t setGroupNameStruct
 		err := decoder.Decode(&t)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -2958,7 +2956,7 @@ func (s *server) SetGroupName() http.HandlerFunc {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 
-		return
+		// return
 	}
 }
 
@@ -3001,7 +2999,7 @@ func (s *server) CreateUser() http.HandlerFunc {
 		var new_user userStruct
 		err := decoder.Decode(&new_user)
 		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
 
@@ -3089,18 +3087,18 @@ func validateMessageFields(phone string, stanzaid string, participant string) (t
 
 	recipient, ok := parseJID(phone)
 	if !ok {
-		return types.NewJID("", types.DefaultUserServer), errors.New("Could not parse Phone")
+		return types.NewJID("", types.DefaultUserServer), errors.New("could not parse phone")
 	}
 
 	if stanzaid != "" {
 		if participant == "" {
-			return types.NewJID("", types.DefaultUserServer), errors.New("Missing Participant in ContextInfo")
+			return types.NewJID("", types.DefaultUserServer), errors.New("missing participant in contextInfo")
 		}
 	}
 
 	if participant != "" {
 		if stanzaid == "" {
-			return types.NewJID("", types.DefaultUserServer), errors.New("Missing StanzaId in ContextInfo")
+			return types.NewJID("", types.DefaultUserServer), errors.New("missing stanzaId in contextInfo")
 		}
 	}
 

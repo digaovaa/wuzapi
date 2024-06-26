@@ -769,16 +769,14 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
 	case *events.LoggedOut:
 		log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
-		killchannel[mycli.userID] <- true
-		// checar postgres sintexe
 
 		err := mycli.service.SetDisconnected(mycli.userID)
-		/* sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
-		_, err := mycli.db.Exec(sqlStmt, mycli.userID) */
+
 		if err != nil {
 			log.Error().Err(err).Msg("Could not update user as disconnected")
 			return
 		}
+		killchannel[mycli.userID] <- true
 
 	case *events.ChatPresence:
 		postmap["type"] = "ChatPresence"
