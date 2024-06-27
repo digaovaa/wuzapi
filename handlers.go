@@ -60,7 +60,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			// fmt.Println("my_secret: " + my_secret)
 
 			if secret != my_secret {
-				s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
+				s.Respond(w, r, http.StatusUnauthorized, errors.New("unauthorized"))
 				return
 			}
 
@@ -139,7 +139,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 		}
 
 		if userid == 0 {
-			s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("unauthorized"))
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -224,7 +224,7 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if userid == 0 {
-			s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("unauthorized"))
 			return
 		}
 		handler(w, r.WithContext(ctx))
@@ -310,7 +310,6 @@ func (s *server) Connect() http.HandlerFunc {
 				}
 			}
 		}
-
 		response := map[string]interface{}{"webhook": webhook, "jid": jid, "events": eventstring, "details": "Connected!"}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -650,8 +649,17 @@ func (s *server) GetStatus() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		// token := r.Context().Value("userinfo").(Values).Get("Token")
 		userid, _ := strconv.Atoi(txtid)
 
+		// if clientPointer[userid] == nil {
+
+		// 	done := make(chan bool)
+		// 	go s.startClient(userid, "", token, []string{}, false, done)
+
+		// 	// Aguardar até receber a sinalização do canal
+		// 	<-done
+		// }
 		if clientPointer[userid] == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
 			return
@@ -667,7 +675,7 @@ func (s *server) GetStatus() http.HandlerFunc {
 		} else {
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
-		// return
+		return
 	}
 }
 
@@ -782,6 +790,10 @@ func (s *server) SendDocument() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "document")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment document message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -898,6 +910,10 @@ func (s *server) SendAudio() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "voice")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment voice message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -1010,6 +1026,10 @@ func (s *server) SendImage() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "image")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment image message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -1236,6 +1256,10 @@ func (s *server) SendVideo() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "video")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment video message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -1324,6 +1348,10 @@ func (s *server) SendContact() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "contact")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment contact message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -1414,6 +1442,10 @@ func (s *server) SendLocation() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "location")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment location message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -1749,6 +1781,10 @@ func (s *server) SendMessage() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			errCount := s.service.SetCountMsg(userid, "text")
+			if errCount != nil {
+				log.Error().Err(errCount).Msg("Failed to increment text message count")
+			}
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 

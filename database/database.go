@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -10,6 +11,12 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/rs/zerolog/log"
+)
+
+var (
+	dbInstance *gorm.DB
+	dbConnStr  string
+	dbOnce     sync.Once
 )
 
 type Service interface {
@@ -26,21 +33,30 @@ type Service interface {
 	GetUserByToken(token string) (*User, error)
 	ListConnectedUsers() ([]*User, error)
 	SetPairingCode(id int, pairingCode string, instance string) error
+	SetCountMsg(id int, typeMsg string) error
 }
 
 type User struct {
 	gorm.Model
-	ID          uint   `gorm:"primaryKey"`
-	Name        string `gorm:"type:text;not null"`
-	Token       string `gorm:"type:text;not null"`
-	Webhook     string `gorm:"type:text;not null;default:''"`
-	Jid         string `gorm:"type:text;not null;default:''"`
-	Qrcode      string `gorm:"type:text;not null;default:''"`
-	Connected   int    `gorm:"type:integer"`
-	Expiration  int    `gorm:"type:integer"`
-	Events      string `gorm:"type:text;not null;default:'All'"`
-	PairingCode string `gorm:"type:text;not null;default:''"`
-	Instance    string `gorm:"type:text;not null;default:''"`
+	ID               uint   `gorm:"primaryKey"`
+	Name             string `gorm:"type:text;not null"`
+	Token            string `gorm:"type:text;not null"`
+	Webhook          string `gorm:"type:text;not null;default:''"`
+	Jid              string `gorm:"type:text;not null;default:''"`
+	Qrcode           string `gorm:"type:text;not null;default:''"`
+	Connected        int    `gorm:"type:integer"`
+	Expiration       int    `gorm:"type:integer"`
+	Events           string `gorm:"type:text;not null;default:'All'"`
+	PairingCode      string `gorm:"type:text;not null;default:''"`
+	Instance         string `gorm:"type:text;not null;default:''"`
+	CountTextMsg     int    `gorm:"type:integer"`
+	CountImageMsg    int    `gorm:"type:integer"`
+	CountVoiceMsg    int    `gorm:"type:integer"`
+	CountVideoMsg    int    `gorm:"type:integer"`
+	CountStickerMsg  int    `gorm:"type:integer"`
+	CountLocationMsg int    `gorm:"type:integer"`
+	CountContactMsg  int    `gorm:"type:integer"`
+	CountDocumentMsg int    `gorm:"type:integer"`
 }
 
 type service struct {
@@ -67,26 +83,33 @@ func startMysql() (*gorm.DB, string, error) {
 	return db, dsn, nil
 }
 
+// startPostgres initializes the database connection if it hasn't been already
 func startPostgres() (*gorm.DB, string, error) {
+	dbOnce.Do(func() {
+		log.Info().Msg("Starting postgres")
 
-	log.Info().Msg("Starting postgres")
+		dbHost := os.Getenv("DB_HOST")
+		dbPort := os.Getenv("DB_PORT")
+		dbUser := os.Getenv("DB_USER")
+		dbPass := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
 
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
+		dbConnStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo", dbHost, dbUser, dbPass, dbName, dbPort)
+		var err error
+		dbInstance, err = gorm.Open(postgres.Open(dbConnStr), &gorm.Config{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Could not open/create " + dbConnStr)
+			return
+		}
 
-	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo", dbHost, dbUser, dbPass, dbName, dbPort)
-	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
-	// fmt.Println(connString)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Could not open/create " + connString)
-		return nil, "", err
+		fmt.Println("Connected to database")
+	})
+
+	if dbInstance == nil {
+		return nil, "", fmt.Errorf("could not establish database connection")
 	}
 
-	fmt.Println("Connected to database")
-	return db, connString, nil
+	return dbInstance, dbConnStr, nil
 }
 
 func startSqlite(exPath string) (*gorm.DB, string, error) {
@@ -153,16 +176,20 @@ func (s *service) UpdateUser(user *User) error {
 
 	return nil
 }
-
 func (s *service) SetQrcode(id int, qrcode string, instance string) error {
-	err := s.db.Model(&User{}).Where("id = ? AND instance = ?", id, instance).Update("qrcode", qrcode).Error
-
-	if err != nil {
-		log.Error().Err(err).Msg("Could not set qrcode")
-
-		return err
+	log.Info().Msgf("Attempting to set QR code for user %d with instance %s", id, instance)
+	result := s.db.Model(&User{}).Where("id = ?", id).Where("instance = ?", instance).Update("qrcode", qrcode)
+	if result.Error != nil {
+		log.Error().Err(result.Error).Msgf("Could not set qrcode for user %d with instance %s", id, instance)
+		return result.Error
 	}
 
+	if result.RowsAffected == 0 {
+		log.Warn().Msgf("No rows affected when setting QR code for user %d with instance %s", id, instance)
+		return fmt.Errorf("no rows affected")
+	}
+
+	log.Info().Msgf("Successfully set QR code for user %d with instance %s", id, instance)
 	return nil
 }
 
@@ -233,11 +260,22 @@ func (s *service) SetEvents(id int, events string) error {
 
 func (s *service) SetPairingCode(id int, pairingCode string, instance string) error {
 
-	err := s.db.Model(&User{}).Where("id = ? AND instance = ?", id, instance).Update("pairing_code", pairingCode).Error
+	err := s.db.Model(&User{}).Where("id = ?", id).Where("instance = ?", instance).Update("pairing_code", pairingCode).Error
 
 	if err != nil {
 		log.Error().Err(err).Msg("Could not set pairing code")
 
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) SetCountMsg(id int, typeMsg string) error {
+	column := fmt.Sprintf("count_%s_msg", typeMsg)
+	err := s.db.Model(&User{}).Where("id = ?", id).UpdateColumn(column, gorm.Expr("COALESCE(?::int, 0) + ?", gorm.Expr(column), 1)).Error
+	if err != nil {
+		log.Error().Err(err).Msg("Could not increment message count")
 		return err
 	}
 

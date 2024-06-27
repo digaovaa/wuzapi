@@ -211,7 +211,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	instance := os.Getenv("INSTANCE")
 
 	if instance == "" {
-		log.Error().Msg("INSTANCE is not set")
+		log.Error().Msg("INSTANCE variable in env is not set")
 		return
 	}
 
@@ -290,8 +290,8 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					// Store encoded/embeded base64 QR on database for retrieval with the /qr endpoint
 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
-
 					err := s.service.SetQrcode(userID, base64qrcode, instance)
+
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
 					}

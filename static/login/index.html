@@ -118,9 +118,7 @@
     async function showQr() {
       clearInterval(scanInterval);
       scanInterval = setInterval(checkStatus, 1000);
-      console.log("showQr", scanned, pairingCode);
       while (!scanned ) {
-        console.log("not scanned");
         var qrData = await getQr();
         if (qrData.success == true) {
           var qrString = qrData.data.QRCode;
@@ -329,7 +327,7 @@
             document.getElementById("disconnectButton").style.display = "block"; // Show the disconnect button
           }
         } else if (status.success == false) {
-          if (status.error == "No session") {
+          if (status.error == "no session") {
             connect().then((data) => {
               if (data.success == true) {
                 showQr();
@@ -337,7 +335,7 @@
                 document.getElementById("connectstatus").innerHTML = "Não foi possível conectar";
               }
             });
-          } else if (status.error == "Unauthorized") {
+          } else if (status.error == "unauthorized") {
             document.getElementById("connectstatus").innerHTML = `Autenticação inválida`;
           }
         } else {
