@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -31,9 +32,12 @@ type Service interface {
 	SetEvents(id int, events string) error
 	GetUserById(id int) (*User, error)
 	GetUserByToken(token string) (*User, error)
+	// ListConnectedUsers retorna todos os usuários conectados
 	ListConnectedUsers() ([]*User, error)
+	// SetPairingCode salva o código de pairing do usuário
 	SetPairingCode(id int, pairingCode string, instance string) error
-	SetCountMsg(id int, typeMsg string) error
+	// SetCountMsg incrementa o contador de mensagens diárias do usuário
+	SetCountMsg(id uint, typeMsg string) error
 }
 
 type User struct {
@@ -49,14 +53,31 @@ type User struct {
 	Events           string `gorm:"type:text;not null;default:'All'"`
 	PairingCode      string `gorm:"type:text;not null;default:''"`
 	Instance         string `gorm:"type:text;not null;default:''"`
-	CountTextMsg     int    `gorm:"type:integer"`
-	CountImageMsg    int    `gorm:"type:integer"`
-	CountVoiceMsg    int    `gorm:"type:integer"`
-	CountVideoMsg    int    `gorm:"type:integer"`
-	CountStickerMsg  int    `gorm:"type:integer"`
-	CountLocationMsg int    `gorm:"type:integer"`
-	CountContactMsg  int    `gorm:"type:integer"`
-	CountDocumentMsg int    `gorm:"type:integer"`
+	CountTextMsg     int    `gorm:"type:integer;default:0"`
+	CountImageMsg    int    `gorm:"type:integer;default:0"`
+	CountVoiceMsg    int    `gorm:"type:integer;default:0"`
+	CountVideoMsg    int    `gorm:"type:integer;default:0"`
+	CountStickerMsg  int    `gorm:"type:integer;default:0"`
+	CountLocationMsg int    `gorm:"type:integer;default:0"`
+	CountContactMsg  int    `gorm:"type:integer;default:0"`
+	CountDocumentMsg int    `gorm:"type:integer;default:0"`
+}
+
+type UserHistory struct {
+	gorm.Model
+	ID               uint      `gorm:"primaryKey"`
+	UserID           uint      `gorm:"not null"`
+	User             *User     `gorm:"foreignKey:UserID"`
+	Date             time.Time `gorm:"type:timestamp;not null"`
+	CountTextMsg     int       `gorm:"type:integer;default:0"`
+	CountImageMsg    int       `gorm:"type:integer;default:0"`
+	CountVoiceMsg    int       `gorm:"type:integer;default:0"`
+	CountVideoMsg    int       `gorm:"type:integer;default:0"`
+	CountStickerMsg  int       `gorm:"type:integer;default:0"`
+	CountLocationMsg int       `gorm:"type:integer;default:0"`
+	CountContactMsg  int       `gorm:"type:integer;default:0"`
+	CountDocumentMsg int       `gorm:"type:integer;default:0"`
+	IsOnline         bool      `gorm:"type:boolean;default:false"`
 }
 
 type service struct {
@@ -121,7 +142,7 @@ func startSqlite(exPath string) (*gorm.DB, string, error) {
 		return nil, "", err
 	}
 
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&User{}, &UserHistory{})
 
 	return db, exPath + "/dbdata/users.db", nil
 }
@@ -140,7 +161,7 @@ func NewService(exPath string, driver string) (Service, string, error) {
 		db, connString, err = startSqlite(exPath)
 	}
 
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&User{}, &UserHistory{})
 
 	if err != nil {
 		return nil, "", err
@@ -271,14 +292,44 @@ func (s *service) SetPairingCode(id int, pairingCode string, instance string) er
 	return nil
 }
 
-func (s *service) SetCountMsg(id int, typeMsg string) error {
-	column := fmt.Sprintf("count_%s_msg", typeMsg)
-	err := s.db.Model(&User{}).Where("id = ?", id).UpdateColumn(column, gorm.Expr("COALESCE(?::int, 0) + ?", gorm.Expr(column), 1)).Error
+// SetCountMsg incrementa o contador de mensagens diárias do usuário
+func (s *service) SetCountMsg(userID uint, typeMsg string) error {
+	// Definir a data atual
+	today := time.Now().Truncate(24 * time.Hour)
+
+	// Encontrar ou criar o registro para o dia atual
+	var userHistory UserHistory
+	err := s.db.Where("user_id = ? AND date = ?", userID, today).First(&userHistory).Error
 	if err != nil {
-		log.Error().Err(err).Msg("Could not increment message count")
-		return err
+		if err == gorm.ErrRecordNotFound {
+			// Criar novo registro se não encontrado
+			userHistory = UserHistory{
+				UserID: userID,
+				Date:   today,
+			}
+			s.db.Create(&userHistory)
+		} else {
+			fmt.Println("Erro ao buscar UserHistory:", err)
+			return err
+		}
 	}
 
+	if typeMsg == "online" {
+		userHistory.IsOnline = true
+		err = s.db.Model(&userHistory).Update("is_online", true).Error
+		if err != nil {
+			fmt.Println("Erro ao atualizar status online:", err)
+			return err
+		}
+	} else {
+		// Incrementar o campo correto
+		column := fmt.Sprintf("count_%s_msg", typeMsg)
+		err = s.db.Model(&userHistory).Update(column, gorm.Expr(fmt.Sprintf("%s + ?", column), 1)).Error
+		if err != nil {
+			fmt.Println("Erro ao incrementar contagem de mensagens:", err)
+			return err
+		}
+	}
 	return nil
 }
 

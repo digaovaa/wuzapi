@@ -613,9 +613,6 @@ func (s *server) Logout() http.HandlerFunc {
 				} else {
 					s.service.SetQrcode(userid, "", instance)
 					s.service.SetDisconnected(userid)
-					killchannel[userid] <- true
-					// s.Respond(w, r, http.StatusOK, string("Logged out"))
-					// return
 				}
 			} else {
 				if clientPointer[userid].IsConnected() {
@@ -637,6 +634,7 @@ func (s *server) Logout() http.HandlerFunc {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
 			// log.Info().Str("jid", jid).Msg("Logged out")
+			// s.service.SetDisconnected(userid)
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 		// return
@@ -790,7 +788,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "document")
+			errCount := s.service.SetCountMsg(uint(userid), "document")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment document message count")
 			}
@@ -910,7 +908,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "voice")
+			errCount := s.service.SetCountMsg(uint(userid), "voice")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment voice message count")
 			}
@@ -1026,7 +1024,7 @@ func (s *server) SendImage() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "image")
+			errCount := s.service.SetCountMsg(uint(userid), "image")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment image message count")
 			}
@@ -1256,7 +1254,7 @@ func (s *server) SendVideo() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "video")
+			errCount := s.service.SetCountMsg(uint(userid), "video")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment video message count")
 			}
@@ -1348,7 +1346,7 @@ func (s *server) SendContact() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "contact")
+			errCount := s.service.SetCountMsg(uint(userid), "contact")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment contact message count")
 			}
@@ -1442,7 +1440,7 @@ func (s *server) SendLocation() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "location")
+			errCount := s.service.SetCountMsg(uint(userid), "location")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment location message count")
 			}
@@ -1781,7 +1779,7 @@ func (s *server) SendMessage() http.HandlerFunc {
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
-			errCount := s.service.SetCountMsg(userid, "text")
+			errCount := s.service.SetCountMsg(uint(userid), "text")
 			if errCount != nil {
 				log.Error().Err(errCount).Msg("Failed to increment text message count")
 			}
@@ -3094,15 +3092,6 @@ func (s *server) DeleteUser() http.HandlerFunc {
 		if clientPointer[user_id] != nil && clientPointer[user_id].IsConnected() && clientPointer[user_id].IsLoggedIn() {
 			// log.Info().Str("id", fmt.Sprintf("%d", user_id)).Msg("Disconnecting user")
 			killchannel[user_id] <- true
-		}
-
-		err = s.service.DeleteUser(user_id)
-
-		if err != nil {
-			log.Err(err).Msg("Failed to delete user")
-
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("failure deleting user"))
-			return
 		}
 
 		response := map[string]interface{}{"Details": "User deleted successfully"}
