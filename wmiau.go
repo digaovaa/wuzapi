@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"mime"
+
+	// "mime"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 	"wuzapi/database"
 
@@ -65,7 +65,7 @@ func (s *server) connectOnStartup() {
 	}
 
 	for _, user := range users {
-		// log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
+		// // log.Info().Str("token", user.Token).Msg("Connect to Whatsapp on startup")
 
 		v := Values{map[string]string{
 			"Id":      strconv.Itoa(int(user.ID)),
@@ -96,69 +96,11 @@ func (s *server) connectOnStartup() {
 				}
 			}
 		}
-		eventstring := strings.Join(subscribedEvents, ",")
-		log.Info().Str("events", eventstring).Str("jid", user.Jid).Msg("Attempt to connect")
+		// eventstring := strings.Join(subscribedEvents, ",")
+		// log.Info().Str("events", eventstring).Str("jid", user.Jid).Msg("Attempt to connect")
 		killchannel[userid] = make(chan bool)
 		go s.startClient(userid, user.Jid, user.Token, subscribedEvents, false, make(chan bool))
 	}
-
-	// checar postgres sintexe
-	/* rows, err := s.db.Query("SELECT id,token,jid,webhook,events FROM users WHERE connected=1")
-	if err != nil {
-		log.Error().Err(err).Msg("DB Problem")
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		txtid := ""
-		token := ""
-		jid := ""
-		webhook := ""
-		events := ""
-		err = rows.Scan(&txtid, &token, &jid, &webhook, &events)
-		if err != nil {
-			log.Error().Err(err).Msg("DB Problem")
-			return
-		} else {
-			log.Info().Str("token", token).Msg("Connect to Whatsapp on startup")
-			v := Values{map[string]string{
-				"Id":      txtid,
-				"Jid":     jid,
-				"Webhook": webhook,
-				"Token":   token,
-				"Events":  events,
-			}}
-			userinfocache.Set(token, v, cache.NoExpiration)
-			userid, _ := strconv.Atoi(txtid)
-			// Gets and set subscription to webhook events
-			eventarray := strings.Split(events, ",")
-
-			var subscribedEvents []string
-			if len(eventarray) < 1 {
-				if !Find(subscribedEvents, "All") {
-					subscribedEvents = append(subscribedEvents, "All")
-				}
-			} else {
-				for _, arg := range eventarray {
-					if !Find(messageTypes, arg) {
-						log.Warn().Str("Type", arg).Msg("Message type discarded")
-						continue
-					}
-					if !Find(subscribedEvents, arg) {
-						subscribedEvents = append(subscribedEvents, arg)
-					}
-				}
-			}
-			eventstring := strings.Join(subscribedEvents, ",")
-			log.Info().Str("events", eventstring).Str("jid", jid).Msg("Attempt to connect")
-			killchannel[userid] = make(chan bool)
-			go s.startClient(userid, jid, token, subscribedEvents)
-		}
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Error().Err(err).Msg("DB Problem")
-	} */
 }
 
 func parseJID(arg string) (types.JID, bool) {
@@ -169,24 +111,10 @@ func parseJID(arg string) (types.JID, bool) {
 		arg = arg[1:]
 	}
 
-	// Basic only digit check for recipient phone number, we want to remove @server and .session
-	phonenumber := ""
-	phonenumber = strings.Split(arg, "@")[0]
-	phonenumber = strings.Split(phonenumber, ".")[0]
-
-	// fmt.Println("phonenumber", phonenumber)
-	/* 	b := true
-	   	for _, c := range phonenumber {
-	   		if c < '0' || c > '9' {
-	   			b = false
-	   			break
-	   		}
-	   	}
-	   	if b == false {
-	   		log.Warn().Msg("Bad jid format, return empty")
-	   		recipient, _ := types.ParseJID("")
-	   		return recipient, false
-	   	} */
+	// // Basic only digit check for recipient phone number, we want to remove @server and .session
+	// phonenumber := ""
+	// phonenumber = strings.Split(arg, "@")[0]
+	// phonenumber = strings.Split(phonenumber, ".")[0]
 
 	if !strings.ContainsRune(arg, '@') {
 		return types.NewJID(arg, types.DefaultUserServer), true
@@ -205,7 +133,7 @@ func parseJID(arg string) (types.JID, bool) {
 
 func (s *server) startClient(userID int, textjid string, token string, subscriptions []string, pairing bool, done chan bool) {
 
-	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
+	// log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
 	var deviceStore *store.Device
 	var err error
 	instance := os.Getenv("INSTANCE")
@@ -280,7 +208,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 			}
 
 			for evt := range qrChan {
-				log.Info().Str("event", evt.Event).Msg("Login event")
+				// log.Info().Str("event", evt.Event).Msg("Login event")
 				if evt.Event == "code" {
 					// Display QR code in terminal (useful for testing/developing)
 					if *logType != "json" {
@@ -307,7 +235,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 							log.Error().Err(err).Msg("Could not update QR code")
 						}
 						pairing = false
-						log.Info().Str("pairingCode", pairingCode).Msg("Pairing code")
+						// log.Info().Str("pairingCode", pairingCode).Msg("Pairing code")
 					}
 
 					// Sinalizar que a operação foi concluída
@@ -322,7 +250,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 					delete(clientPointer, userID)
 					killchannel[userID] <- true
 				} else if evt.Event == "success" {
-					log.Info().Msg("QR pairing ok!")
+					// log.Info().Msg("QR pairing ok!")
 					err := s.service.SetQrcode(userID, "", instance)
 					if err != nil {
 						log.Error().Err(err).Msg("Could not update QR code")
@@ -333,7 +261,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 			}
 		}
 	} else {
-		log.Info().Msg("Already logged in, just connect")
+		// log.Info().Msg("Already logged in, just connect")
 		err = client.Connect()
 		if err != nil {
 			panic(err)
@@ -343,7 +271,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	for {
 		select {
 		case <-killchannel[userID]:
-			log.Info().Str("userid", strconv.Itoa(userID)).Msg("Received kill signal")
+			// log.Info().Str("userid", strconv.Itoa(userID)).Msg("Received kill signal")
 			client.Disconnect()
 			delete(clientPointer, userID)
 			err := s.service.SetDisconnected(userID)
@@ -356,154 +284,6 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		}
 	}
 }
-
-// func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) (string, error) {
-
-// 	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
-// 	var deviceStore *store.Device
-// 	var err error
-
-// 	fmt.Println("clientPointer", clientPointer)
-// 	if clientPointer[userID] != nil {
-// 		isConnected := clientPointer[userID].IsConnected()
-// 		if isConnected == true {
-// 			return "", nil
-// 		}
-// 	}
-
-// 	if textjid != "" && textjid != "PAIRPHONE" {
-// 		jid, _ := parseJID(textjid)
-// 		deviceStore, err = container.GetDevice(jid)
-// 		if err != nil {
-// 			return "", err
-// 		}
-// 	} else {
-// 		log.Warn().Msg("No jid found. Creating new device")
-// 		deviceStore = container.NewDevice()
-// 	}
-
-// 	if deviceStore == nil {
-// 		log.Warn().Msg("No store found. Creating new one")
-// 		deviceStore = container.NewDevice()
-// 	}
-
-// 	osName := "Windows"
-// 	store.DeviceProps.PlatformType = waProto.DeviceProps_CHROME.Enum()
-// 	store.DeviceProps.Os = &osName
-
-// 	clientLog := waLog.Stdout("Client", *waDebug, true)
-// 	var client *whatsmeow.Client
-
-// 	if *waDebug != "" {
-// 		client = whatsmeow.NewClient(deviceStore, clientLog)
-// 	} else {
-// 		client = whatsmeow.NewClient(deviceStore, nil)
-// 	}
-
-// 	clientPointer[userID] = client
-// 	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service}
-// 	mycli.eventHandlerID = mycli.WAClient.AddEventHandler(mycli.myEventHandler)
-// 	clientHttp[userID] = resty.New()
-// 	clientHttp[userID].SetRedirectPolicy(resty.FlexibleRedirectPolicy(15))
-
-// 	if *waDebug == "DEBUG" {
-// 		clientHttp[userID].SetDebug(true)
-// 	}
-
-// 	clientHttp[userID].SetTimeout(5 * time.Second)
-// 	clientHttp[userID].SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
-
-// 	generateQRCode := func() (string, error) {
-// 		qrChan, err1 := client.GetQRChannel(context.Background())
-
-// 		if err1 != nil {
-// 			if !errors.Is(err1, whatsmeow.ErrQRStoreContainsID) {
-// 				log.Error().Err(err1).Msg("Failed to get QR channel")
-// 				return "", err1
-// 			}
-// 			return "", nil
-// 		}
-
-// 		err = client.Connect()
-// 		if err != nil {
-// 			return "", err
-// 		}
-
-// 		for evt := range qrChan {
-// 			if evt.Event == "code" {
-// 				if *logType != "json" {
-// 					qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-// 					fmt.Println("QR code:\n", evt.Code)
-// 				}
-
-// 				image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
-// 				base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
-
-// 				err := s.service.SetQrcode(userID, base64qrcode)
-// 				if err != nil {
-// 					log.Error().Err(err).Msg("Could not update QR code")
-// 				}
-// 				return base64qrcode, nil
-// 			} else if evt.Event == "timeout" {
-// 				err := s.service.SetQrcode(userID, "")
-// 				if err != nil {
-// 					log.Error().Err(err).Msg("Could not update QR code")
-// 				}
-
-// 				log.Warn().Msg("QR timeout killing channel")
-// 				delete(clientPointer, userID)
-// 				killchannel[userID] <- true
-// 				break
-// 			} else if evt.Event == "success" {
-// 				log.Info().Msg("QR pairing ok!")
-// 				err := s.service.SetQrcode(userID, "")
-// 				if err != nil {
-// 					log.Error().Err(err).Msg("Could not update QR code")
-// 				}
-// 			} else {
-// 				log.Info().Str("event", evt.Event).Msg("Login event")
-// 			}
-// 		}
-
-// 		return "", nil
-// 	}
-
-// 	if textjid == "PAIRPHONE" {
-// 		return generateQRCode()
-// 	}
-
-// 	if client.Store.ID == nil {
-// 		base64qrcode, err := generateQRCode()
-// 		if err != nil {
-// 			return "", err
-// 		}
-// 		return base64qrcode, nil
-// 	}
-
-// 	log.Info().Msg("Already logged in, just connect")
-// 	err = client.Connect()
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	for {
-// 		select {
-// 		case <-killchannel[userID]:
-// 			log.Info().Str("userid", strconv.Itoa(userID)).Msg("Received kill signal")
-// 			client.Disconnect()
-// 			delete(clientPointer, userID)
-
-// 			err := s.service.SetDisconnected(userID)
-// 			if err != nil {
-// 				log.Error().Err(err).Msg("Could not update user as disconnected")
-// 			}
-
-// 			return "", nil
-// 		default:
-// 			time.Sleep(1000 * time.Millisecond)
-// 		}
-// 	}
-// }
 
 func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	txtid := strconv.Itoa(mycli.userID)
@@ -526,12 +306,13 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			err := mycli.WAClient.SendPresence(types.PresenceAvailable)
 			if err != nil {
 				log.Warn().Err(err).Msg("Failed to send available presence")
-			} else {
-				log.Info().Msg("Marked self as available")
 			}
+			// else {
+			// 	// log.Info().Msg("Marked self as available")
+			// }
 		}
 	case *events.Connected, *events.PushNameSetting:
-		log.Info().Msg("Connected event received")
+		// log.Info().Msg("Connected event received")
 		if len(mycli.WAClient.Store.PushName) == 0 {
 			return
 		}
@@ -540,9 +321,10 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		err := mycli.WAClient.SendPresence(types.PresenceAvailable)
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to send available presence")
-		} else {
-			log.Info().Msg("Marked self as available")
 		}
+		// else {
+		// 	// log.Info().Msg("Marked self as available")
+		// }
 
 		err = mycli.service.SetConnected(mycli.userID)
 
@@ -555,7 +337,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		}
 
 	case *events.PairSuccess:
-		log.Info().Str("userid", strconv.Itoa(mycli.userID)).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
+		// log.Info().Str("userid", strconv.Itoa(mycli.userID)).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
 		jid := evt.ID
 
 		// checar postgres sintexe
@@ -579,14 +361,14 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		if !found {
 			log.Warn().Msg("No user info cached on pairing?")
 		} else {
-			txtid := myuserinfo.(Values).Get("Id")
+			// txtid := myuserinfo.(Values).Get("Id")
 			token := myuserinfo.(Values).Get("Token")
 			v := updateUserInfo(myuserinfo, "Jid", fmt.Sprintf("%s", jid))
 			userinfocache.Set(token, v, cache.NoExpiration)
-			log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
+			// log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
 		}
 	case *events.StreamReplaced:
-		log.Info().Msg("Received StreamReplaced event")
+		// log.Info().Msg("Received StreamReplaced event")
 		return
 	case *events.Message:
 		postmap["type"] = "Message"
@@ -605,7 +387,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			metaParts = append(metaParts, "ephemeral")
 		}
 
-		log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Msg("Message Received")
+		// log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Msg("Message Received")
 
 		// try to get Image if any
 		img := evt.Message.GetImageMessage()
@@ -622,19 +404,19 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			data, err := mycli.WAClient.Download(img)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to download image")
-				return
-			}
-			exts, _ := mime.ExtensionsByType(img.GetMimetype())
-			path = fmt.Sprintf("%s/%s%s", userDirectory, evt.Info.ID, exts[0])
-			err = os.WriteFile(path, data, 0600)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to save image")
-				return
-			}
-			log.Info().Str("path", path).Msg("Image saved")
+			// data, err := mycli.WAClient.Download(img)
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("Failed to download image")
+			// 	return
+			// }
+			// exts, _ := mime.ExtensionsByType(img.GetMimetype())
+			// path = fmt.Sprintf("%s/%s%s", userDirectory, evt.Info.ID, exts[0])
+			// err = os.WriteFile(path, data, 0600)
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("Failed to save image")
+			// 	return
+			// }
+			// log.Info().Str("path", path).Msg("Image saved")
 		}
 
 		// try to get Audio if any
@@ -652,19 +434,19 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			data, err := mycli.WAClient.Download(audio)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to download audio")
-				return
-			}
-			exts, _ := mime.ExtensionsByType(audio.GetMimetype())
-			path = fmt.Sprintf("%s/%s%s", userDirectory, evt.Info.ID, exts[0])
-			err = os.WriteFile(path, data, 0600)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to save audio")
-				return
-			}
-			log.Info().Str("path", path).Msg("Audio saved")
+			// data, err := mycli.WAClient.Download(audio)
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("Failed to download audio")
+			// 	return
+			// }
+			// exts, _ := mime.ExtensionsByType(audio.GetMimetype())
+			// path = fmt.Sprintf("%s/%s%s", userDirectory, evt.Info.ID, exts[0])
+			// err = os.WriteFile(path, data, 0600)
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("Failed to save audio")
+			// 	return
+			// }
+			// log.Info().Str("path", path).Msg("Audio saved")
 		}
 
 		// try to get Document if any
@@ -682,32 +464,32 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			data, err := mycli.WAClient.Download(document)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to download document")
-				return
-			}
-			extension := ""
-			exts, err := mime.ExtensionsByType(document.GetMimetype())
-			if err != nil {
-				extension = exts[0]
-			} else {
-				filename := document.FileName
-				extension = filepath.Ext(*filename)
-			}
-			path = fmt.Sprintf("%s/%s%s", userDirectory, evt.Info.ID, extension)
-			err = os.WriteFile(path, data, 0600)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to save document")
-				return
-			}
-			log.Info().Str("path", path).Msg("Document saved")
+			// data, err := mycli.WAClient.Download(document)
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("Failed to download document")
+			// 	return
+			// }
+			// extension := ""
+			// exts, err := mime.ExtensionsByType(document.GetMimetype())
+			// if err != nil {
+			// 	extension = exts[0]
+			// } else {
+			// 	filename := document.FileName
+			// 	extension = filepath.Ext(*filename)
+			// }
+			// path = fmt.Sprintf("%s/%s%s", userDirectory, evt.Info.ID, extension)
+			// err = os.WriteFile(path, data, 0600)
+			// if err != nil {
+			// 	log.Error().Err(err).Msg("Failed to save document")
+			// 	return
+			// }
+			// log.Info().Str("path", path).Msg("Document saved")
 		}
 	case *events.Receipt:
 		postmap["type"] = "ReadReceipt"
 		dowebhook = 1
 		if evt.Type == events.ReceiptTypeRead || evt.Type == events.ReceiptTypeReadSelf {
-			log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message was read")
+			// log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message was read")
 			if evt.Type == events.ReceiptTypeRead {
 				postmap["state"] = "Read"
 			} else {
@@ -715,7 +497,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			}
 		} else if evt.Type == events.ReceiptTypeDelivered {
 			postmap["state"] = "Delivered"
-			log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message delivered")
+			// log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message delivered")
 		} else {
 			// Discard webhooks for inactive or other delivery types
 			return
@@ -725,50 +507,51 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		dowebhook = 1
 		if evt.Unavailable {
 			postmap["state"] = "offline"
-			if evt.LastSeen.IsZero() {
-				log.Info().Str("from", evt.From.String()).Msg("User is now offline")
-			} else {
-				log.Info().Str("from", evt.From.String()).Str("lastSeen", fmt.Sprintf("%d", evt.LastSeen)).Msg("User is now offline")
-			}
+			// if evt.LastSeen.IsZero() {
+			// 	// log.Info().Str("from", evt.From.String()).Msg("User is now offline")
+			// }
+			// else {
+			// 	// log.Info().Str("from", evt.From.String()).Str("lastSeen", fmt.Sprintf("%d", evt.LastSeen)).Msg("User is now offline")
+			// }
 		} else {
 			postmap["state"] = "online"
-			log.Info().Str("from", evt.From.String()).Msg("User is now online")
+			// log.Info().Str("from", evt.From.String()).Msg("User is now online")
 		}
 	case *events.HistorySync:
 		postmap["type"] = "HistorySync"
 		dowebhook = 1
 
 		// check/creates user directory for files
-		userDirectory := fmt.Sprintf("%s/files/user_%s", exPath, txtid)
-		_, err := os.Stat(userDirectory)
-		if os.IsNotExist(err) {
-			errDir := os.MkdirAll(userDirectory, 0751)
-			if errDir != nil {
-				log.Error().Err(errDir).Msg("Could not create user directory")
-				return
-			}
-		}
+		// userDirectory := fmt.Sprintf("%s/files/user_%s", exPath, txtid)
+		// _, err := os.Stat(userDirectory)
+		// if os.IsNotExist(err) {
+		// errDir := os.MkdirAll(userDirectory, 0751)
+		// if errDir != nil {
+		// 	log.Error().Err(errDir).Msg("Could not create user directory")
+		// 	return
+		// }
+		// }
 
-		id := atomic.AddInt32(&historySyncID, 1)
-		fileName := fmt.Sprintf("%s/history-%d.json", userDirectory, id)
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0600)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to open file to write history sync")
-			return
-		}
-		enc := json.NewEncoder(file)
-		enc.SetIndent("", "  ")
-		err = enc.Encode(evt.Data)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to write history sync")
-			return
-		}
-		log.Info().Str("filename", fileName).Msg("Wrote history sync")
-		_ = file.Close()
+		// id := atomic.AddInt32(&historySyncID, 1)
+		// fileName := fmt.Sprintf("%s/history-%d.json", userDirectory, id)
+		// file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0600)
+		// if err != nil {
+		// 	log.Error().Err(err).Msg("Failed to open file to write history sync")
+		// 	return
+		// }
+		// enc := json.NewEncoder(file)
+		// enc.SetIndent("", "  ")
+		// err = enc.Encode(evt.Data)
+		// if err != nil {
+		// 	log.Error().Err(err).Msg("Failed to write history sync")
+		// 	return
+		// }
+		// // log.Info().Str("filename", fileName).Msg("Wrote history sync")
+		// _ = file.Close()
 	case *events.AppState:
-		log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
+		// log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
 	case *events.LoggedOut:
-		log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
+		// log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
 
 		err := mycli.service.SetDisconnected(mycli.userID)
 
@@ -781,17 +564,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.ChatPresence:
 		postmap["type"] = "ChatPresence"
 		dowebhook = 1
-		log.Info().Str("state", fmt.Sprintf("%s", evt.State)).Str("media", fmt.Sprintf("%s", evt.Media)).Str("chat", evt.MessageSource.Chat.String()).Str("sender", evt.MessageSource.Sender.String()).Msg("Chat Presence received")
+		// log.Info().Str("state", fmt.Sprintf("%s", evt.State)).Str("media", fmt.Sprintf("%s", evt.Media)).Str("chat", evt.MessageSource.Chat.String()).Str("sender", evt.MessageSource.Sender.String()).Msg("Chat Presence received")
 	case *events.CallOffer:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
 	case *events.CallAccept:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
 	case *events.CallTerminate:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
 	case *events.CallOfferNotice:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
 	case *events.CallRelayLatency:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
 	default:
 		log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
 	}
@@ -845,7 +628,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		}
 
 		if webhookurl != "" {
-			log.Info().Str("url", webhookurl).Msg("Calling webhook")
+			// log.Info().Str("url", webhookurl).Msg("Calling webhook")
 			values, _ := json.Marshal(postmap)
 			if path == "" {
 				data := make(map[string]string)
@@ -859,16 +642,6 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				go callHookFile(webhookurl, data, mycli.userID, path)
 			}
 		}
-		// } else {
-		// 	values, _ := json.Marshal(postmap)
-
-		// 	data := make(map[string]string)
-		// 	data["jsonData"] = string(values)
-		// 	data["token"] = mycli.token
-
-		// 	fmt.Println("MENSAGEM", data)
-		// 	log.Warn().Str("userid", strconv.Itoa(mycli.userID)).Msg("No webhook set for user")
-		// }
 	}
 }
 

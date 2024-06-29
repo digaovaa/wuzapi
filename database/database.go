@@ -64,7 +64,7 @@ type service struct {
 }
 
 func startMysql() (*gorm.DB, string, error) {
-	log.Info().Msg("Starting mysql")
+	// log.Info().Msg("Starting mysql")
 
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -86,7 +86,7 @@ func startMysql() (*gorm.DB, string, error) {
 // startPostgres initializes the database connection if it hasn't been already
 func startPostgres() (*gorm.DB, string, error) {
 	dbOnce.Do(func() {
-		log.Info().Msg("Starting postgres")
+		// log.Info().Msg("Starting postgres")
 
 		dbHost := os.Getenv("DB_HOST")
 		dbPort := os.Getenv("DB_PORT")
@@ -113,7 +113,7 @@ func startPostgres() (*gorm.DB, string, error) {
 }
 
 func startSqlite(exPath string) (*gorm.DB, string, error) {
-	log.Info().Msg("Starting sqlite")
+	// log.Info().Msg("Starting sqlite")
 
 	db, err := gorm.Open(sqlite.Open(exPath+"/dbdata/users.db"), &gorm.Config{})
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *service) UpdateUser(user *User) error {
 	return nil
 }
 func (s *service) SetQrcode(id int, qrcode string, instance string) error {
-	log.Info().Msgf("Attempting to set QR code for user %d with instance %s", id, instance)
+	// log.Info().Msgf("Attempting to set QR code for user %d with instance %s", id, instance)
 	result := s.db.Model(&User{}).Where("id = ?", id).Where("instance = ?", instance).Update("qrcode", qrcode)
 	if result.Error != nil {
 		log.Error().Err(result.Error).Msgf("Could not set qrcode for user %d with instance %s", id, instance)
@@ -189,7 +189,7 @@ func (s *service) SetQrcode(id int, qrcode string, instance string) error {
 		return fmt.Errorf("no rows affected")
 	}
 
-	log.Info().Msgf("Successfully set QR code for user %d with instance %s", id, instance)
+	// log.Info().Msgf("Successfully set QR code for user %d with instance %s", id, instance)
 	return nil
 }
 

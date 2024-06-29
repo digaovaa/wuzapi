@@ -28,6 +28,8 @@ func (s *server) routes() {
 		log = zerolog.New(output).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Str("host", *address).Logger()
 	}
 
+	zerolog.SetGlobalLevel(zerolog.Disabled) // Adicione esta linha
+
 	c := alice.New()
 	c = c.Append(s.authalice)
 	c = c.Append(hlog.NewHandler(log))

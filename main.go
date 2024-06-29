@@ -41,12 +41,11 @@ var (
 	container  *sqlstore.Container
 
 	killchannel   = make(map[int](chan bool))
-	userinfocache = cache.New(5*time.Minute, 10*time.Minute)
+	userinfocache = cache.New(1*time.Minute, 2*time.Minute)
 	log           zerolog.Logger
 )
 
 func init() {
-
 	flag.Parse()
 
 	if *logType == "json" {
@@ -58,7 +57,6 @@ func init() {
 }
 
 func main() {
-
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error loading .env file")
@@ -66,13 +64,11 @@ func main() {
 	}
 
 	ex, err := os.Executable()
-
 	if err != nil {
 		panic(err)
 	}
 
 	this_dir, err := os.Getwd()
-
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +77,6 @@ func main() {
 	exPath := filepath.Dir(ex)
 
 	dbDirectory := exPath + "/dbdata"
-
 	fmt.Println(dbDirectory)
 	_, err = os.Stat(dbDirectory)
 	if os.IsNotExist(err) {
@@ -96,36 +91,24 @@ func main() {
 	fmt.Println("Driver: " + driver)
 
 	service, connString, err := database.NewService(exPath, driver)
-
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error starting database")
 		panic("Error starting database")
-
 	}
 
 	if driver == "sqlite" {
 		connString = "file:" + connString + "?_pragma=foreign_keys(1)&_busy_timeout=3000"
 	}
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
 
-	dbLog := waLog.Stdout("Database", "ERROR", true)
+	dbLog := waLog.Stdout("Database", "WARN", true)
 	container, err = sqlstore.New(driver, connString, dbLog)
-	// if *waDebug != "" {
-	// 	dbLog := waLog.Stdout("Database", "ERROR", true)
-	// 	container, err = sqlstore.New(driver, connString, dbLog)
-	// } else {
-	// 	container, err = sqlstore.New(driver, connString, nil)
-	// }
 	if err != nil {
 		panic(err)
 	}
 	container.Upgrade()
 
 	s := &server{
-		router: mux.NewRouter(),
-		// db:      db,
+		router:  mux.NewRouter(),
 		exPath:  exPath,
 		service: service,
 	}
@@ -145,31 +128,33 @@ func main() {
 	go func() {
 		if *sslcert != "" {
 			if err := srv.ListenAndServeTLS(*sslcert, *sslprivkey); err != nil && err != http.ErrServerClosed {
-				//log.Fatalf("listen: %s\n", err)
 				log.Fatal().Err(err).Msg("Startup failed")
 			}
 		} else {
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				//log.Fatalf("listen: %s\n", err)
 				log.Fatal().Err(err).Msg("Startup failed")
 			}
 		}
 	}()
-	//wlog.Infof("Server Started. Listening on %s:%s", *address, *port)
-	log.Info().Str("address", *address).Str("port", *port).Msg("Server Started")
+	// log.Info().Str("address", *address).Str("port", *port).Msg("Server Started")
 
 	<-done
-	log.Info().Msg("Server Stoped")
+	// log.Info().Msg("Server Stopped")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer func() {
-		// extra handling here
 		cancel()
+		if container != nil {
+			container.Close()
+		}
+		if s.db != nil {
+			s.db.Close()
+		}
 	}()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Error().Str("error", fmt.Sprintf("%+v", err)).Msg("Server Shutdown Failed")
 		os.Exit(1)
 	}
-	log.Info().Msg("Server Exited Properly")
+	// log.Info().Msg("Server Exited Properly")
 }
