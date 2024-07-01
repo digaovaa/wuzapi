@@ -307,7 +307,9 @@ func (s *service) SetPairingCode(id int, pairingCode string, instance string) er
 // SetCountMsg incrementa o contador de mensagens diárias do usuário
 func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 	// Definir a data atual
-	today := time.Now().Truncate(time.Hour)
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	fmt.Println("today:", today)
 	// Iniciar uma transação
 	tx := s.db.Begin()
 	if tx.Error != nil {

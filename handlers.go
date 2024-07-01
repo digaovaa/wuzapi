@@ -90,7 +90,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			// fmt.Println("user", user)
 
 			if err != nil {
-				s.Respond(w, r, http.StatusInternalServerError, err)
+				s.Respond(w, r, http.StatusUnauthorized, err)
 				return
 			}
 
@@ -174,7 +174,7 @@ func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
 
 			if err != nil {
 
-				s.Respond(w, r, http.StatusInternalServerError, err)
+				s.Respond(w, r, http.StatusUnauthorized, err)
 				return
 			}
 
