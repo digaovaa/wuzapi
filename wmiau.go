@@ -266,6 +266,11 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		if err != nil {
 			panic(err)
 		}
+
+		err := s.service.SetCountMsg(uint(userID), "online")
+		if err != nil {
+			log.Error().Err(err).Msg("Could not update count messages")
+		}
 	}
 
 	for {
