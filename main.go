@@ -20,6 +20,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/patrickmn/go-cache"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog"
 	_ "modernc.org/sqlite"
 )
@@ -137,6 +138,15 @@ func main() {
 		}
 	}()
 	// log.Info().Str("address", *address).Str("port", *port).Msg("Server Started")
+
+	c := cron.New()
+	c.AddFunc("@daily", func() {
+		err := s.service.CheckAndSetUserOnline()
+		if err != nil {
+			log.Error().Err(err).Msg("Error checking and setting user online")
+		}
+	})
+	c.Start()
 
 	<-done
 	// log.Info().Msg("Server Stopped")

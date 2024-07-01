@@ -38,17 +38,18 @@ type Service interface {
 	SetPairingCode(id int, pairingCode string, instance string) error
 	// SetCountMsg incrementa o contador de mensagens diárias do usuário
 	SetCountMsg(id uint, typeMsg string) error
+	CheckAndSetUserOnline() error
 }
 
 type User struct {
 	gorm.Model
 	ID               uint   `gorm:"primaryKey"`
-	Name             string `gorm:"type:text;not null"`
-	Token            string `gorm:"type:text;not null"`
+	Name             string `gorm:"type:text;not null;index"`
+	Token            string `gorm:"type:text;not null;index"`
 	Webhook          string `gorm:"type:text;not null;default:''"`
 	Jid              string `gorm:"type:text;not null;default:''"`
 	Qrcode           string `gorm:"type:text;not null;default:''"`
-	Connected        int    `gorm:"type:integer"`
+	Connected        int    `gorm:"type:integer:index"`
 	Expiration       int    `gorm:"type:integer"`
 	Events           string `gorm:"type:text;not null;default:'All'"`
 	PairingCode      string `gorm:"type:text;not null;default:''"`
@@ -66,9 +67,9 @@ type User struct {
 type UserHistory struct {
 	gorm.Model
 	ID               uint      `gorm:"primaryKey"`
-	UserID           uint      `gorm:"not null"`
+	UserID           uint      `gorm:"not null;index"`
 	User             *User     `gorm:"foreignKey:UserID"`
-	Date             time.Time `gorm:"type:timestamp;not null"`
+	Date             time.Time `gorm:"type:timestamp;not null:index"`
 	CountTextMsg     int       `gorm:"type:integer;default:0"`
 	CountImageMsg    int       `gorm:"type:integer;default:0"`
 	CountVoiceMsg    int       `gorm:"type:integer;default:0"`
@@ -122,6 +123,17 @@ func startPostgres() (*gorm.DB, string, error) {
 			log.Fatal().Err(err).Msg("Could not open/create " + dbConnStr)
 			return
 		}
+		// Configurando o pool de conexões
+		sqlDB, err := dbInstance.DB()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Could not get DB from gorm.DB")
+			return
+		}
+
+		// Definindo configurações de pool de conexão
+		sqlDB.SetMaxIdleConns(10)           // Número máximo de conexões inativas
+		sqlDB.SetMaxOpenConns(50)           // Número máximo de conexões abertas
+		sqlDB.SetConnMaxLifetime(time.Hour) // Tempo máximo de vida útil de uma conexão
 
 		fmt.Println("Connected to database")
 	})
@@ -297,9 +309,27 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 	// Definir a data atual
 	today := time.Now().Truncate(24 * time.Hour)
 
+	// Iniciar uma transação
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		fmt.Println("Erro ao iniciar transação:", tx.Error)
+		return tx.Error
+	}
+
+	// Defer a função para garantir que a transação seja commitada ou rolback
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		} else if tx.Error != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
 	// Encontrar ou criar o registro para o dia atual
 	var userHistory UserHistory
-	err := s.db.Where("user_id = ? AND date = ?", userID, today).First(&userHistory).Error
+	err := tx.Where("user_id = ? AND date = ?", userID, today).First(&userHistory).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// Criar novo registro se não encontrado
@@ -307,29 +337,55 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 				UserID: userID,
 				Date:   today,
 			}
-			s.db.Create(&userHistory)
+			if err := tx.Create(&userHistory).Error; err != nil {
+				fmt.Println("Erro ao criar UserHistory:", err)
+				tx.Rollback()
+				return err
+			}
 		} else {
 			fmt.Println("Erro ao buscar UserHistory:", err)
+			tx.Rollback()
 			return err
 		}
 	}
 
 	if typeMsg == "online" {
 		userHistory.IsOnline = true
-		err = s.db.Model(&userHistory).Update("is_online", true).Error
+		err = tx.Model(&userHistory).Update("is_online", true).Error
 		if err != nil {
 			fmt.Println("Erro ao atualizar status online:", err)
+			tx.Rollback()
 			return err
 		}
 	} else {
 		// Incrementar o campo correto
 		column := fmt.Sprintf("count_%s_msg", typeMsg)
-		err = s.db.Model(&userHistory).Update(column, gorm.Expr(fmt.Sprintf("%s + ?", column), 1)).Error
+		err = tx.Model(&userHistory).Update(column, gorm.Expr(fmt.Sprintf("%s + ?", column), 1)).Error
 		if err != nil {
 			fmt.Println("Erro ao incrementar contagem de mensagens:", err)
+			tx.Rollback()
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (s *service) CheckAndSetUserOnline() error {
+	var users []User
+	if err := s.db.Where("connected = ?", 1).Find(&users).Error; err != nil {
+		fmt.Println("Erro ao buscar usuários conectados:", err)
+		return err
+	}
+
+	for _, user := range users {
+		if err := s.SetCountMsg(user.ID, "online"); err != nil {
+			fmt.Printf("Erro ao chamar SetCountMsg para o usuário %d: %v\n", user.ID, err)
+			// Aqui você pode decidir se quer continuar o loop ou parar em caso de erro
+			// return err
+		}
+	}
+
 	return nil
 }
 

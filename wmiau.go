@@ -312,12 +312,12 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			// }
 		}
 	case *events.Connected, *events.PushNameSetting:
-		// log.Info().Msg("Connected event received")
-		erro := mycli.service.SetCountMsg(uint(mycli.userID), "online")
-		if erro != nil {
-			log.Error().Err(err).Msg("Could not update count messages")
-			return
-		}
+		log.Info().Msg("Connected event received")
+		// erro := mycli.service.SetCountMsg(uint(mycli.userID), "online")
+		// if erro != nil {
+		// 	log.Error().Err(err).Msg("Could not update count messages")
+		// 	return
+		// }
 		if len(mycli.WAClient.Store.PushName) == 0 {
 			return
 		}
@@ -630,11 +630,11 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			webhookurl = myuserinfo.(Values).Get("Webhook")
 		}
 
-		err := mycli.service.SetCountMsg(uint(mycli.userID), "online")
-		if err != nil {
-			log.Error().Err(err).Msg("Could not update count messages")
-			return
-		}
+		// err := mycli.service.SetCountMsg(uint(mycli.userID), "online")
+		// if err != nil {
+		// 	log.Error().Err(err).Msg("Could not update count messages")
+		// 	return
+		// }
 
 		if !Find(mycli.subscriptions, postmap["type"].(string)) && !Find(mycli.subscriptions, "All") {
 			// log.Warn().Str("type", postmap["type"].(string)).Msg("Skipping webhook. Not subscribed for this type")
