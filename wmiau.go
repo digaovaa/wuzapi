@@ -178,7 +178,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	} else {
 		client = whatsmeow.NewClient(deviceStore, nil)
 	}
-	client.SetForceActiveDeliveryReceipts(false)
+	// client.SetForceActiveDeliveryReceipts(false)
 
 	clientPointer[userID] = client
 	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service, instance}
@@ -267,7 +267,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	} else {
 		// log.Info().Msg("Already logged in, just connect")
 		err = client.Connect()
-		client.SetForceActiveDeliveryReceipts(false)
+		// client.SetForceActiveDeliveryReceipts(false)
 
 		if err != nil {
 			panic(err)
