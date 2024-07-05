@@ -3051,6 +3051,14 @@ func (s *server) CreateUser() http.HandlerFunc {
 
 		new_user.Instance = os.Getenv("INSTANCE")
 
+		userExist, err := s.service.GetUserByToken(new_user.Token)
+
+		if err != nil {
+			log.Error().Str("error", fmt.Sprintf("%v", err)).Str("token", userExist.Name).Msg("Failed to get user by token")
+			s.Respond(w, r, http.StatusBadRequest, errors.New("token already exists"))
+			return
+		}
+
 		id, err := s.service.CreateUser(&database.User{
 			Token:    new_user.Token,
 			Name:     new_user.Name,

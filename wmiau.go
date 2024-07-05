@@ -178,10 +178,14 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	} else {
 		client = whatsmeow.NewClient(deviceStore, nil)
 	}
+	client.SetForceActiveDeliveryReceipts(false)
 
 	clientPointer[userID] = client
 	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s.service, instance}
+
 	mycli.eventHandlerID = mycli.WAClient.AddEventHandler(mycli.myEventHandler)
+	// clientPointer[userID].SetForceActiveDeliveryReceipts(false)
+
 	clientHttp[userID] = resty.New()
 	clientHttp[userID].SetRedirectPolicy(resty.FlexibleRedirectPolicy(15))
 
@@ -263,10 +267,12 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	} else {
 		// log.Info().Msg("Already logged in, just connect")
 		err = client.Connect()
+		client.SetForceActiveDeliveryReceipts(false)
+
 		if err != nil {
 			panic(err)
 		}
-
+		fmt.Println("Connected: ", userID)
 		err := s.service.SetCountMsg(uint(userID), "online")
 		if err != nil {
 			log.Error().Err(err).Msg("Could not update count messages")
@@ -308,7 +314,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	switch evt := rawEvt.(type) {
 	case *events.AppStateSyncComplete:
 		if len(mycli.WAClient.Store.PushName) > 0 && evt.Name == appstate.WAPatchCriticalBlock {
-			err := mycli.WAClient.SendPresence(types.PresenceAvailable)
+			err := mycli.WAClient.SendPresence(types.PresenceUnavailable)
 			if err != nil {
 				log.Warn().Err(err).Msg("Failed to send available presence")
 			}
@@ -328,14 +334,13 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		}
 		// Send presence available when connecting and when the pushname is changed.
 		// This makes sure that outgoing messages always have the right pushname.
-		err := mycli.WAClient.SendPresence(types.PresenceAvailable)
+		err := mycli.WAClient.SendPresence(types.PresenceUnavailable)
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to send available presence")
 		}
 		// else {
 		// 	// log.Info().Msg("Marked self as available")
 		// }
-
 		err = mycli.service.SetConnected(mycli.userID)
 
 		/* sqlStmt := `UPDATE users SET connected=1 WHERE id=?`
