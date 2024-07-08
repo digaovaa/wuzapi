@@ -69,7 +69,7 @@ type UserHistory struct {
 	ID               uint      `gorm:"primaryKey"`
 	UserID           uint      `gorm:"not null;index"`
 	User             *User     `gorm:"foreignKey:UserID"`
-	Date             time.Time `gorm:"type:timestamp;not null:index"`
+	Date             time.Time `gorm:"type:timestamp;not null;index"`
 	CountTextMsg     int       `gorm:"type:integer;default:0"`
 	CountImageMsg    int       `gorm:"type:integer;default:0"`
 	CountVoiceMsg    int       `gorm:"type:integer;default:0"`
