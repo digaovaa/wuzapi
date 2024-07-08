@@ -49,7 +49,7 @@ type User struct {
 	Webhook          string `gorm:"type:text;not null;default:''"`
 	Jid              string `gorm:"type:text;not null;default:''"`
 	Qrcode           string `gorm:"type:text;not null;default:''"`
-	Connected        int    `gorm:"type:integer:index"`
+	Connected        int    `gorm:"type:integer;index"`
 	Expiration       int    `gorm:"type:integer"`
 	Events           string `gorm:"type:text;not null;default:'All'"`
 	PairingCode      string `gorm:"type:text;not null;default:''"`
@@ -69,7 +69,7 @@ type UserHistory struct {
 	ID               uint      `gorm:"primaryKey"`
 	UserID           uint      `gorm:"not null;index"`
 	User             *User     `gorm:"foreignKey:UserID"`
-	Date             time.Time `gorm:"type:timestamp;not null;index"`
+	Date             time.Time `gorm:"type:timestamp;index"`
 	CountTextMsg     int       `gorm:"type:integer;default:0"`
 	CountImageMsg    int       `gorm:"type:integer;default:0"`
 	CountVoiceMsg    int       `gorm:"type:integer;default:0"`
