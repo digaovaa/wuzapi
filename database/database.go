@@ -79,6 +79,8 @@ type UserHistory struct {
 	CountContactMsg  int       `gorm:"type:integer;default:0"`
 	CountDocumentMsg int       `gorm:"type:integer;default:0"`
 	IsOnline         bool      `gorm:"type:boolean;default:false"`
+	DisconnectedAt   time.Time `gorm:"type:timestamp"`
+	ConnectedAt      time.Time `gorm:"type:timestamp"`
 }
 
 type service struct {
@@ -309,7 +311,6 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 	// Definir a data atual
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	fmt.Println("today:", today)
 	// Iniciar uma transação
 	tx := s.db.Begin()
 	if tx.Error != nil {
@@ -350,9 +351,19 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 		}
 	}
 
-	if typeMsg == "online" {
+	if typeMsg == "disconnected" {
+		userHistory.DisconnectedAt = time.Now()
+		err = tx.Model(&userHistory).Update("disconnected_at", userHistory.DisconnectedAt).Error
+		if err != nil {
+			fmt.Println("Erro ao atualizar disconnected_at:", err)
+			tx.Rollback()
+			return err
+		}
+	} else if typeMsg == "online" {
 		userHistory.IsOnline = true
-		err = tx.Model(&userHistory).Update("is_online", true).Error
+		userHistory.ConnectedAt = time.Now()
+
+		err = tx.Model(&userHistory).Update("is_online", true).Update("connected_at", userHistory.ConnectedAt).Error
 		if err != nil {
 			fmt.Println("Erro ao atualizar status online:", err)
 			tx.Rollback()

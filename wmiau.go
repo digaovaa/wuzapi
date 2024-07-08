@@ -343,9 +343,6 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		// }
 		err = mycli.service.SetConnected(mycli.userID)
 
-		/* sqlStmt := `UPDATE users SET connected=1 WHERE id=?`
-		_, err = mycli.db.Exec(sqlStmt, mycli.userID) */
-
 		if err != nil {
 			log.Error().Err(err).Msg("Could not update user as connected")
 			return
@@ -365,13 +362,6 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			return
 		}
 
-		err = mycli.service.SetConnected(mycli.userID)
-
-		if err != nil {
-			log.Error().Err(err).Msg("Could not update user as connected")
-			return
-		}
-
 		myuserinfo, found := userinfocache.Get(mycli.token)
 		if !found {
 			log.Warn().Msg("No user info cached on pairing?")
@@ -381,6 +371,22 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			v := updateUserInfo(myuserinfo, "Jid", fmt.Sprintf("%s", jid))
 			userinfocache.Set(token, v, cache.NoExpiration)
 			// log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
+		}
+
+		err = mycli.service.SetConnected(mycli.userID)
+
+		if err != nil {
+			log.Error().Err(err).Msg("Could not update user as connected")
+			return
+		}
+
+		err = nil
+
+		err = mycli.service.SetCountMsg(uint(mycli.userID), "online")
+
+		if err != nil {
+			log.Error().Err(err).Msg("Could not update count messages")
+			return
 		}
 	case *events.StreamReplaced:
 		// log.Info().Msg("Received StreamReplaced event")
@@ -573,6 +579,14 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		// log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
 		err = mycli.service.SetDisconnected(mycli.userID)
 
+		if err != nil {
+			log.Error().Err(err).Msg("Could not update user as disconnected")
+			return
+		}
+
+		err = nil
+
+		err = mycli.service.SetCountMsg(uint(mycli.userID), "disconnected")
 		if err != nil {
 			log.Error().Err(err).Msg("Could not update user as disconnected")
 			return

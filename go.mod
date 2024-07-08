@@ -13,7 +13,7 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/vincent-petithory/dataurl v1.0.0
-	go.mau.fi/whatsmeow v0.0.0-20240705160923-bcbc6be0f7d3
+	go.mau.fi/whatsmeow v0.0.0-20240706081318-bd4d4e8f74f6
 	google.golang.org/protobuf v1.34.2
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/driver/postgres v1.5.4
@@ -44,7 +44,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/xid v1.5.0 // indirect
-	go.mau.fi/libsignal v0.1.0 // indirect
+	go.mau.fi/libsignal v0.1.1-0.20240705162345-47e713a595ab // indirect
 	go.mau.fi/util v0.5.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect

@@ -258,7 +258,7 @@ func (s *server) Connect() http.HandlerFunc {
 		}
 		// fmt.Println("clientPointer[userid]", clientPointer[userid])
 		if clientPointer[userid] != nil && clientPointer[userid].IsConnected() {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("already connected"))
+			s.Respond(w, r, http.StatusConflict, errors.New("already connected"))
 			return
 		} else {
 
@@ -605,6 +605,7 @@ func (s *server) Logout() http.HandlerFunc {
 			return
 		} else {
 			if clientPointer[userid].IsLoggedIn() && clientPointer[userid].IsConnected() {
+				fmt.Println("Logout")
 				err := clientPointer[userid].Logout()
 				if err != nil {
 					log.Error().Str("jid", jid).Msg("Could not perform logout")
@@ -613,6 +614,7 @@ func (s *server) Logout() http.HandlerFunc {
 				} else {
 					s.service.SetQrcode(userid, "", instance)
 					s.service.SetDisconnected(userid)
+					killchannel[userid] <- true
 				}
 			} else {
 				if clientPointer[userid].IsConnected() {
