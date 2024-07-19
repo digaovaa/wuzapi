@@ -946,6 +946,9 @@ definitions:
       Document:
         type: string
         example: data:application/octet-stream;base64,aG9sYSBxdWUKdGFsCmNvbW8KZXN0YXMK
+      Caption:
+        type: string
+        example: Document Description
       FileName:
         type: string
         example: file.txt

@@ -619,11 +619,11 @@ func (s *server) Logout() http.HandlerFunc {
 			} else {
 				if clientPointer[userid].IsConnected() {
 					log.Warn().Str("jid", jid).Msg("ignoring logout as it was not logged in 620")
-					s.Respond(w, r, http.StatusInternalServerError, errors.New("could not disconnect as it was not logged in"))
+					s.Respond(w, r, http.StatusOK, errors.New("could not disconnect as it was not logged in"))
 					return
 				} else {
 					log.Warn().Str("jid", jid).Msg("ignoring logout as it was not connected 624")
-					s.Respond(w, r, http.StatusInternalServerError, errors.New("could not disconnect as it was not connected"))
+					s.Respond(w, r, http.StatusOK, errors.New("could not disconnect as it was not connected"))
 					return
 				}
 			}
@@ -685,6 +685,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 	type documentStruct struct {
 		Phone       string
 		Document    string
+		Caption     string
 		FileName    string
 		Id          string
 		ContextInfo waE2E.ContextInfo
@@ -761,6 +762,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 
 		msg := &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{
 			URL:           proto.String(uploaded.URL),
+			Caption:       proto.String(t.Caption),
 			FileName:      &t.FileName,
 			DirectPath:    proto.String(uploaded.DirectPath),
 			MediaKey:      uploaded.MediaKey,
