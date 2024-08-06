@@ -3041,12 +3041,11 @@ func (s *server) CreateUser() http.HandlerFunc {
 		decoder := json.NewDecoder(r.Body)
 		var new_user userStruct
 		err := decoder.Decode(&new_user)
+
 		if err != nil {
 			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode payload"))
 			return
 		}
-
-		// fmt.Println(new_user)
 
 		if new_user.Token == "" {
 			s.Respond(w, r, http.StatusBadRequest, errors.New("missing token in payload"))
@@ -3062,7 +3061,7 @@ func (s *server) CreateUser() http.HandlerFunc {
 
 		userExist, err := s.service.GetUserByToken(new_user.Token)
 
-		if err != nil {
+		if err != nil && err.Error() != "record not found" {
 			log.Error().Str("error", fmt.Sprintf("%v", err)).Str("token", userExist.Name).Msg("Failed to get user by token")
 			s.Respond(w, r, http.StatusBadRequest, errors.New("token already exists"))
 			return
