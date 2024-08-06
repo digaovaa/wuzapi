@@ -629,6 +629,11 @@ func (s *server) Logout() http.HandlerFunc {
 			}
 		}
 
+		err1 := s.service.SetCountMsg(uint(userid), "disconnected")
+		if err1 != nil {
+			log.Error().Str("jid", jid).Msg("Could not set disconnected count")
+		}
+
 		response := map[string]interface{}{"Details": "Logged out"}
 		responseJson, err := json.Marshal(response)
 		// fmt.Println("RODRIGO: " + fmt.Sprintf("%v", responseJson) + " " + fmt.Sprintf("%v", err))

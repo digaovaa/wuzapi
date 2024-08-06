@@ -66,21 +66,21 @@ type User struct {
 
 type UserHistory struct {
 	gorm.Model
-	ID               uint      `gorm:"primaryKey"`
-	UserID           uint      `gorm:"not null;index"`
-	User             *User     `gorm:"foreignKey:UserID"`
-	Date             time.Time `gorm:"type:timestamp;index"`
-	CountTextMsg     int       `gorm:"type:integer;default:0"`
-	CountImageMsg    int       `gorm:"type:integer;default:0"`
-	CountVoiceMsg    int       `gorm:"type:integer;default:0"`
-	CountVideoMsg    int       `gorm:"type:integer;default:0"`
-	CountStickerMsg  int       `gorm:"type:integer;default:0"`
-	CountLocationMsg int       `gorm:"type:integer;default:0"`
-	CountContactMsg  int       `gorm:"type:integer;default:0"`
-	CountDocumentMsg int       `gorm:"type:integer;default:0"`
-	IsOnline         bool      `gorm:"type:boolean;default:false"`
-	DisconnectedAt   time.Time `gorm:"type:timestamp"`
-	ConnectedAt      time.Time `gorm:"type:timestamp"`
+	ID               uint       `gorm:"primaryKey"`
+	UserID           uint       `gorm:"not null;index"`
+	User             *User      `gorm:"foreignKey:UserID"`
+	Date             time.Time  `gorm:"type:timestamp;index"`
+	CountTextMsg     int        `gorm:"type:integer;default:0"`
+	CountImageMsg    int        `gorm:"type:integer;default:0"`
+	CountVoiceMsg    int        `gorm:"type:integer;default:0"`
+	CountVideoMsg    int        `gorm:"type:integer;default:0"`
+	CountStickerMsg  int        `gorm:"type:integer;default:0"`
+	CountLocationMsg int        `gorm:"type:integer;default:0"`
+	CountContactMsg  int        `gorm:"type:integer;default:0"`
+	CountDocumentMsg int        `gorm:"type:integer;default:0"`
+	IsOnline         bool       `gorm:"type:boolean;default:false"`
+	DisconnectedAt   *time.Time `gorm:"type:timestamp;default:null"`
+	ConnectedAt      *time.Time `gorm:"type:timestamp;default:null"`
 }
 
 type service struct {
@@ -336,8 +336,11 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 		if err == gorm.ErrRecordNotFound {
 			// Criar novo registro se não encontrado
 			userHistory = UserHistory{
-				UserID: userID,
-				Date:   today,
+				UserID:         userID,
+				Date:           today,
+				DisconnectedAt: nil,
+				ConnectedAt:    nil,
+				IsOnline:       false,
 			}
 			if err := tx.Create(&userHistory).Error; err != nil {
 				fmt.Println("Erro ao criar UserHistory:", err)
@@ -352,8 +355,10 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 	}
 
 	if typeMsg == "disconnected" {
-		userHistory.DisconnectedAt = time.Now()
-		err = tx.Model(&userHistory).Update("disconnected_at", userHistory.DisconnectedAt).Error
+		disconnectedAt := time.Now()
+		userHistory.DisconnectedAt = &disconnectedAt
+		userHistory.IsOnline = false
+		err = tx.Model(&userHistory).Update("disconnected_at", userHistory.DisconnectedAt).Update("is_online", false).Error
 		if err != nil {
 			fmt.Println("Erro ao atualizar disconnected_at:", err)
 			tx.Rollback()
@@ -361,7 +366,8 @@ func (s *service) SetCountMsg(userID uint, typeMsg string) error {
 		}
 	} else if typeMsg == "online" {
 		userHistory.IsOnline = true
-		userHistory.ConnectedAt = time.Now()
+		connectedAt := time.Now()
+		userHistory.ConnectedAt = &connectedAt
 
 		err = tx.Model(&userHistory).Update("is_online", true).Update("connected_at", userHistory.ConnectedAt).Error
 		if err != nil {
