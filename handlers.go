@@ -3061,9 +3061,15 @@ func (s *server) CreateUser() http.HandlerFunc {
 
 		userExist, err := s.service.GetUserByToken(new_user.Token)
 
-		if err != nil && err.Error() != "record not found" {
+		if err != nil && err.Error() != "record not found" || userExist != nil {
 			log.Error().Str("error", fmt.Sprintf("%v", err)).Str("token", userExist.Name).Msg("Failed to get user by token")
-			s.Respond(w, r, http.StatusBadRequest, errors.New("token already exists"))
+			response := map[string]interface{}{"message": "Token already exists", "name": userExist.Name, "token": userExist.Token, "instance": userExist.Instance}
+			responseJson, err := json.Marshal(response)
+			if err != nil {
+				s.Respond(w, r, http.StatusInternalServerError, err)
+			} else {
+				s.Respond(w, r, http.StatusOK, string(responseJson))
+			}
 			return
 		}
 
